@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Docklet
 
-## Getting Started
+Self-hosted Docker container & file management web interface.
 
-First, run the development server:
+## Quick Start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+docker run -d --name docklet -p 3000:3000 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v docklet-data:/docklet-data \
+  --restart always \
+  docklet:latest
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open `http://localhost:3000` to complete the setup wizard.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## First-Run Setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Navigate to `http://localhost:3000` — you'll be redirected to the setup wizard
+2. Create your admin account (username + password)
+3. Click "Go to Dashboard" to start managing containers
 
-## Learn More
+## Configuration
 
-To learn more about Next.js, take a look at the following resources:
+All configuration is done via the web UI Settings page. No environment variables required for end users.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Environment Variables (optional)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `DOCKLET_DATA_DIR` | `/docklet-data` | Root data directory |
+| `DOCKER_SOCKET` | `/var/run/docker.sock` | Docker daemon socket |
+| `PORT` | `3000` | Server port |
 
-## Deploy on Vercel
+### TLS / HTTPS
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Go to Settings > TLS Certificates
+2. Upload your certificate (`cert.pem`) and private key (`key.pem`)
+3. Restart the container — Docklet will automatically start with HTTPS
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Data Persistence
+
+All data is stored in a single volume:
+
+```
+/docklet-data/
+  db/docklet.db      # Database (users, settings, templates)
+  certs/             # TLS certificates
+  backups/           # Automated backups (future)
+```
+
+To back up your Docklet instance, copy the entire data volume.
+
+## Docker Compose
+
+```yaml
+services:
+  docklet:
+    image: docklet:latest
+    container_name: docklet
+    ports:
+      - "3000:3000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - docklet-data:/docklet-data
+    restart: always
+
+volumes:
+  docklet-data:
+```
+
+## Upgrading
+
+```bash
+docker pull docklet:latest
+docker stop docklet && docker rm docklet
+# Re-run the docker run command — your data persists in the volume
+```

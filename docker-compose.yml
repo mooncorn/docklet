@@ -1,0 +1,16 @@
+services:
+  docklet:
+    build: .
+    container_name: docklet
+    ports:
+      - "3000:3000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - docklet-data:/docklet-data
+    restart: always
+    environment:
+      - DOCKLET_DATA_DIR=/docklet-data
+      - DOCKER_SOCKET=/var/run/docker.sock
+
+volumes:
+  docklet-data:
