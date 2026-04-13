@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("Setup Wizard", () => {
+test.describe.serial("Setup Wizard", () => {
   test("should redirect to setup on first visit", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveURL(/\/setup/);
@@ -10,7 +10,7 @@ test.describe("Setup Wizard", () => {
     await page.goto("/setup");
     await expect(page.getByText("Welcome to Docklet")).toBeVisible();
     await expect(page.getByLabel("Admin Username")).toBeVisible();
-    await expect(page.getByLabel("Password")).toBeVisible();
+    await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
     await expect(page.getByLabel("Confirm Password")).toBeVisible();
   });
 
@@ -30,6 +30,9 @@ test.describe("Setup Wizard", () => {
 
 test.describe("Login", () => {
   test("should show login page", async ({ page }) => {
+    await page.context().addCookies([
+      { name: "docklet_setup", value: "true", url: "http://localhost:3000" },
+    ]);
     await page.goto("/login");
     await expect(page.getByText("Sign in to your account")).toBeVisible();
   });

@@ -26,23 +26,8 @@ function createDb() {
   const sqlite = new Database(dbPath);
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
-  return drizzle(sqlite, { schema });
-}
 
-let _db: ReturnType<typeof createDb> | null = null;
-
-export function getDb() {
-  if (!_db) {
-    _db = createDb();
-  }
-  return _db;
-}
-
-export function runMigrations(): void {
-  const db = getDb();
-  const sqlite = (db as unknown as { $client: Database.Database }).$client;
-
-  // Auto-create tables using raw SQL (simpler than drizzle-kit for embedded use)
+  // Auto-migrate on first connection so dev server doesn't need explicit init
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -75,6 +60,21 @@ export function runMigrations(): void {
       updated_at INTEGER NOT NULL
     );
   `);
+
+  return drizzle(sqlite, { schema });
+}
+
+let _db: ReturnType<typeof createDb> | null = null;
+
+export function getDb() {
+  if (!_db) {
+    _db = createDb();
+  }
+  return _db;
+}
+
+export function runMigrations(): void {
+  getDb(); // migrations run automatically inside createDb()
 }
 
 export { schema };
