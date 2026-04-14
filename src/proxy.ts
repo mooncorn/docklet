@@ -13,30 +13,6 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check setup status via a lightweight cookie/header approach
-  // The setup_completed flag is set as a cookie by the setup API
-  const setupCompleted = request.cookies.get("docklet_setup")?.value === "true";
-
-  // If setup not completed, redirect everything to /setup (except /setup itself and its API)
-  if (!setupCompleted) {
-    if (pathname === "/setup" || pathname === "/api/auth/setup") {
-      return NextResponse.next();
-    }
-    // For API routes, return 503
-    if (pathname.startsWith("/api/")) {
-      return NextResponse.json(
-        { error: "Setup not completed" },
-        { status: 503 }
-      );
-    }
-    return NextResponse.redirect(new URL("/setup", request.url));
-  }
-
-  // If setup is completed and user visits /setup, redirect to dashboard
-  if (pathname === "/setup") {
-    return NextResponse.redirect(new URL("/", request.url));
-  }
-
   // Public paths don't require auth
   if (PUBLIC_PATHS.some((p) => pathname === p)) {
     return NextResponse.next();

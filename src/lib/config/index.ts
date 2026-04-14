@@ -1,5 +1,5 @@
 import { getDb } from "@/lib/db";
-import { settings } from "@/lib/db/schema";
+import { settings, users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { randomBytes } from "crypto";
 
@@ -32,7 +32,9 @@ export function getAllSettings(): Record<string, string> {
 }
 
 export function isSetupCompleted(): boolean {
-  return getSetting("setup_completed") === "true";
+  const db = getDb();
+  const admin = db.select().from(users).where(eq(users.role, "admin")).get();
+  return admin !== undefined;
 }
 
 export function ensureJwtSecret(): void {

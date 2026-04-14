@@ -33,14 +33,23 @@ describe("config", () => {
     expect(getSetting("test_key")).toBe("updated_value");
   });
 
-  it("should check setup completion", async () => {
-    const { isSetupCompleted, setSetting } = await import("@/lib/config");
+  it("should check setup completion based on admin user existence", async () => {
+    const { isSetupCompleted } = await import("@/lib/config");
+    const { getDb } = await import("@/lib/db");
+    const { users } = await import("@/lib/db/schema");
 
-    // Note: may already be set from previous test runs in same process
-    setSetting("setup_completed", "false");
     expect(isSetupCompleted()).toBe(false);
 
-    setSetting("setup_completed", "true");
+    const db = getDb();
+    const now = new Date();
+    db.insert(users).values({
+      username: "admin",
+      passwordHash: "hash",
+      role: "admin",
+      createdAt: now,
+      updatedAt: now,
+    }).run();
+
     expect(isSetupCompleted()).toBe(true);
   });
 

@@ -5,7 +5,6 @@ import { users } from "@/lib/db/schema";
 import { hashPassword } from "@/lib/auth/password";
 import { createSession, setSessionCookie } from "@/lib/auth/session";
 import { setSetting, isSetupCompleted, ensureJwtSecret } from "@/lib/config";
-import { cookies } from "next/headers";
 
 const setupSchema = z.object({
   username: z
@@ -65,23 +64,11 @@ export async function POST(request: NextRequest) {
       .returning()
       .get();
 
-    // Mark setup as completed
-    setSetting("setup_completed", "true");
     setSetting("app_name", "Docklet");
 
     // Create session
     const token = await createSession(inserted);
     await setSessionCookie(token);
-
-    // Set setup cookie for middleware
-    const cookieStore = await cookies();
-    cookieStore.set("docklet_setup", "true", {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 365 * 24 * 60 * 60, // 1 year
-      path: "/",
-    });
 
     return NextResponse.json({ success: true, user: { id: inserted.id, username: inserted.username, role: inserted.role } });
   } catch (error) {
