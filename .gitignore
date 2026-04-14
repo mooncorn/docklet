@@ -42,6 +42,7 @@ next-env.d.ts
 
 # data
 /docklet-data/
+/tmp
 
 # playwright
 /test-results/
