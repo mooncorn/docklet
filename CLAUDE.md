@@ -63,16 +63,21 @@ Node.js server wrapping Next.js for conditional TLS. Runs migrations and initial
 
 ### Styling
 - Tailwind CSS v4 — dark theme only (gray-900 bg, gray-800 cards, gray-700 borders)
-- Custom component classes in `globals.css`: `.btn-primary`, `.btn-secondary`, `.btn-danger`, `.input-field`, `.card`, `.spinner`
+- Custom component classes in `globals.css`: `.btn-primary`, `.btn-secondary`, `.btn-danger`, `.btn-icon`, `.input-field`, `.card`, `.spinner`
+- Badge classes: `.badge`, `.badge-green`, `.badge-red`, `.badge-yellow`, `.badge-blue`, `.badge-gray`
+- Tab classes: `.tab-bar`, `.tab-item`, `.tab-active`, `.tab-inactive`
+- Misc: `.log-viewer`, `.form-label`
 - Sidebar classes: `.nav-link`, `.nav-link-active`, `.nav-link-inactive`, `.sidebar`
 - Icons from react-icons: use HeroIcons v2 outline set (`react-icons/hi2`)
+- Shared UI components in `src/components/ui/`: `Button`, `Modal`, `ConfirmDialog`, `PageHeader`, `StatusBadge`, `Tabs`, `FormInput`, `FormSection`, `DynamicList`
 
 ### Data Directory
 Single volume at `DOCKLET_DATA_DIR` (default `/docklet-data`):
 ```
-db/docklet.db    — SQLite database
-certs/           — TLS cert.pem + key.pem
-backups/         — Future automated backups
+db/docklet.db          — SQLite database
+certs/                 — TLS cert.pem + key.pem
+backups/               — Future automated backups
+volumes/<name>/<path>  — Auto-managed container bind mounts
 ```
 
 ### Environment Variables
@@ -84,9 +89,15 @@ All other config is in the settings DB table, managed via web UI.
 
 ## Testing
 
+Testability is a first-class concern. Write code that is easy to test:
+- Keep side-effectful code (DB, Docker, filesystem) in a thin layer that can be mocked
+- Pure functions and service modules should have unit tests alongside them
+- Run `npm run typecheck` and `npm test` after every batch of changes
+
 ### Unit Tests
 - Vitest with path alias `@/` → `./src/`
 - Place test files next to source: `foo.ts` → `foo.test.ts`
+- Mock external dependencies at the module level with `vi.mock()`
 - For tests needing DB: create temp dir, set `DOCKLET_DATA_DIR`, call `initDataDirs()` + `runMigrations()`, clean up in `afterAll`
 - Use dynamic `import()` when module behavior depends on env vars set during test setup
 
@@ -99,11 +110,11 @@ All other config is in the settings DB table, managed via web UI.
 ### Phase 1 (Complete): Foundation
 Scaffolding, DB, auth, config, middleware, setup wizard, login, dashboard shell, settings page, TLS cert upload, server.ts, Dockerfile, CI/CD, docs.
 
-### Phase 2 (TODO): Docker Management
-Container CRUD, image management, SSE log/event streaming via dockerode.
+### Phase 2 (Complete): Docker Management
+Container CRUD, image management, SSE log/event streaming via dockerode. Docker service layer in `src/lib/docker/` (client, containers, images, types). Container templates backed by DB. Auto-managed volume bind mounts under `volumes/`.
 
 ### Phase 3 (TODO): File Management & System Monitoring
 File browser/editor/upload, system resource streaming via systeminformation.
 
 ### Phase 4 (TODO): User Management & Polish
-User CRUD, container templates, rate limiting.
+User CRUD, rate limiting.
