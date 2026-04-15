@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  HiOutlineHome,
   HiOutlineCube,
   HiOutlinePhoto,
   HiOutlineFolder,
@@ -18,6 +19,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
+  { label: "Dashboard", href: "/dashboard", icon: <HiOutlineHome className="w-5 h-5" /> },
   { label: "Containers", href: "/containers", icon: <HiOutlineCube className="w-5 h-5" /> },
   { label: "Images", href: "/images", icon: <HiOutlinePhoto className="w-5 h-5" /> },
   { label: "Files", href: "/files", icon: <HiOutlineFolder className="w-5 h-5" /> },
@@ -54,7 +56,7 @@ export default function Sidebar({ userRole, isOpen, onClose }: SidebarProps) {
         }`}
       >
         <div className="p-4 border-b border-gray-700">
-          <Link href="/containers" className="text-xl font-bold text-white">
+          <Link href="/dashboard" className="text-xl font-bold text-white">
             Docklet
           </Link>
         </div>

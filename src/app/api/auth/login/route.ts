@@ -5,6 +5,7 @@ import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { verifyPassword } from "@/lib/auth/password";
 import { createSession, setSessionCookie } from "@/lib/auth/session";
+import { checkRateLimit, getClientIp, RateLimitError } from "@/lib/rate-limit";
 
 const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -13,6 +14,7 @@ const loginSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    checkRateLimit(`login:${getClientIp(request)}`, 5, 15 * 60 * 1000);
     const body = await request.json();
     const result = loginSchema.safeParse(body);
 
@@ -54,6 +56,9 @@ export async function POST(request: NextRequest) {
       user: { id: user.id, username: user.username, role: user.role },
     });
   } catch (error) {
+    if (error instanceof RateLimitError) {
+      return NextResponse.json({ error: error.message }, { status: 429 });
+    }
     console.error("Login error:", error);
     return NextResponse.json({ error: "Login failed" }, { status: 500 });
   }

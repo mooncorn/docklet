@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession, type SessionPayload } from "./session";
+import { AppError } from "@/lib/errors";
 
 export async function requireAuth(): Promise<SessionPayload> {
   const session = await getSession();
@@ -29,6 +30,12 @@ export class AuthError extends Error {
 
 export function handleApiError(error: unknown): NextResponse {
   if (error instanceof AuthError) {
+    return NextResponse.json(
+      { error: error.message },
+      { status: error.status }
+    );
+  }
+  if (error instanceof AppError) {
     return NextResponse.json(
       { error: error.message },
       { status: error.status }

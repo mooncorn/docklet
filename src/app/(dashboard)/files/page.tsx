@@ -1,10 +1,14 @@
+import PageHeader from "@/components/ui/PageHeader";
+import FileBrowser from "./FileBrowser";
+
 export default function FilesPage() {
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Files</h1>
-      <div className="card">
-        <p className="text-gray-400">File management coming in Phase 3.</p>
-      </div>
+      <PageHeader
+        title="Files"
+        description="Browse and edit container volumes under /docklet-data/volumes"
+      />
+      <FileBrowser />
     </div>
   );
 }

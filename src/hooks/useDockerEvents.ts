@@ -7,6 +7,7 @@ export function useDockerEvents(onEvent: (event: DockerEvent) => void) {
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const backoffRef = useRef(1000);
+  const connectRef = useRef<() => void>(() => {});
 
   const connect = useCallback(() => {
     if (eventSourceRef.current) return;
@@ -15,7 +16,7 @@ export function useDockerEvents(onEvent: (event: DockerEvent) => void) {
     eventSourceRef.current = es;
 
     es.onmessage = (e) => {
-      backoffRef.current = 1000; // Reset backoff on successful message
+      backoffRef.current = 1000;
       try {
         const event: DockerEvent = JSON.parse(e.data);
         onEvent(event);
@@ -27,10 +28,9 @@ export function useDockerEvents(onEvent: (event: DockerEvent) => void) {
     es.onerror = () => {
       es.close();
       eventSourceRef.current = null;
-      // Reconnect with backoff
       reconnectTimeoutRef.current = setTimeout(() => {
         backoffRef.current = Math.min(backoffRef.current * 2, 30000);
-        connect();
+        connectRef.current();
       }, backoffRef.current);
     };
   }, [onEvent]);
@@ -42,6 +42,7 @@ export function useDockerEvents(onEvent: (event: DockerEvent) => void) {
   }, []);
 
   useEffect(() => {
+    connectRef.current = connect;
     connect();
     return disconnect;
   }, [connect, disconnect]);

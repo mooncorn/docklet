@@ -117,4 +117,4 @@ Container CRUD, image management, SSE log/event streaming via dockerode. Docker 
 File browser/editor/upload, system resource streaming via systeminformation.
 
 ### Phase 4 (TODO): User Management & Polish
-User CRUD, rate limiting.
+User CRUD.

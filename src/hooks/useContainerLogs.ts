@@ -12,10 +12,12 @@ export function useContainerLogs(
   const [connected, setConnected] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
 
-  const connect = useCallback(() => {
-    if (!containerId) return;
-    disconnect();
+  const [reconnectTick, setReconnectTick] = useState(0);
+  const reconnect = useCallback(() => setReconnectTick((t) => t + 1), []);
+  const clear = useCallback(() => setLogs([]), []);
 
+  useEffect(() => {
+    if (!containerId) return;
     const tail = opts.tail ?? 200;
     const es = new EventSource(
       `/api/containers/${containerId}/logs?tail=${tail}`
@@ -23,7 +25,6 @@ export function useContainerLogs(
     eventSourceRef.current = es;
 
     es.onopen = () => setConnected(true);
-
     es.onmessage = (e) => {
       try {
         const line = JSON.parse(e.data);
@@ -37,26 +38,17 @@ export function useContainerLogs(
         // Skip malformed messages
       }
     };
-
     es.onerror = () => {
       setConnected(false);
       es.close();
       eventSourceRef.current = null;
     };
-  }, [containerId, opts.tail]);
 
-  const disconnect = useCallback(() => {
-    eventSourceRef.current?.close();
-    eventSourceRef.current = null;
-    setConnected(false);
-  }, []);
+    return () => {
+      es.close();
+      eventSourceRef.current = null;
+    };
+  }, [containerId, opts.tail, reconnectTick]);
 
-  const clear = useCallback(() => setLogs([]), []);
-
-  useEffect(() => {
-    connect();
-    return disconnect;
-  }, [connect, disconnect]);
-
-  return { logs, connected, clear, reconnect: connect };
+  return { logs, connected, clear, reconnect };
 }

@@ -5,6 +5,7 @@ import { users } from "@/lib/db/schema";
 import { hashPassword } from "@/lib/auth/password";
 import { createSession, setSessionCookie } from "@/lib/auth/session";
 import { setSetting, isSetupCompleted, ensureJwtSecret } from "@/lib/config";
+import { checkRateLimit, getClientIp, RateLimitError } from "@/lib/rate-limit";
 
 const setupSchema = z.object({
   username: z
@@ -32,6 +33,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    checkRateLimit(`setup:${getClientIp(request)}`, 3, 60 * 60 * 1000);
     const body = await request.json();
     const result = setupSchema.safeParse(body);
 
@@ -72,6 +74,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, user: { id: inserted.id, username: inserted.username, role: inserted.role } });
   } catch (error) {
+    if (error instanceof RateLimitError) {
+      return NextResponse.json({ error: error.message }, { status: 429 });
+    }
     console.error("Setup error:", error);
     return NextResponse.json(
       { error: "Failed to complete setup" },
