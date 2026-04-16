@@ -14,12 +14,13 @@ export interface FileEntry {
   size: number;
   mtime: number;
   mode: string;
+  isText: boolean;
 }
 
 export const MAX_TEXT_FILE_BYTES = 5 * 1024 * 1024;
 export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 
-async function entryFromAbs(absPath: string): Promise<FileEntry> {
+async function entryFromAbs(absPath: string, isText = false): Promise<FileEntry> {
   const st = await stat(absPath);
   return {
     name: basename(absPath),
@@ -28,7 +29,22 @@ async function entryFromAbs(absPath: string): Promise<FileEntry> {
     size: st.size,
     mtime: st.mtimeMs,
     mode: (st.mode & 0o777).toString(8).padStart(3, "0"),
+    isText: st.isDirectory() ? false : isText,
   };
+}
+
+async function detectIsText(absPath: string): Promise<boolean> {
+  let detected: Awaited<ReturnType<typeof fileTypeFromFile>>;
+  try {
+    detected = await fileTypeFromFile(absPath);
+  } catch {
+    // Can't read file → don't assume text
+    return false;
+  }
+  // file-type recognises all major binary formats by magic bytes.
+  // If it returns nothing the file has no recognised binary signature → treat as text.
+  if (detected) return isTextMime(detected.mime);
+  return true;
 }
 
 function wrapFsError(err: unknown): never {
@@ -57,7 +73,9 @@ export async function listDir(relPath: string): Promise<FileEntry[]> {
   const entries = await Promise.all(
     names!.map(async (name) => {
       try {
-        return await entryFromAbs(join(abs, name));
+        const filePath = join(abs, name);
+        const isText = await detectIsText(filePath).catch(() => false);
+        return await entryFromAbs(filePath, isText);
       } catch {
         return null;
       }

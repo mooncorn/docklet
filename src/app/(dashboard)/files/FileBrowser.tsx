@@ -79,6 +79,7 @@ export default function FileBrowser() {
       setCwd(entry.path);
       return;
     }
+    if (!entry.isText) return;
     setEditorPath(entry.path);
     setEditorContent("");
     setEditorError(null);
@@ -326,17 +327,24 @@ export default function FileBrowser() {
               {entries.map((entry) => (
                 <tr key={entry.path} className="hover:bg-gray-700/30">
                   <td className="py-2 px-2">
-                    <button
-                      onClick={() => openEntry(entry)}
-                      className="flex items-center gap-2 text-left text-blue-300 hover:text-blue-200"
-                    >
-                      {entry.isDir ? (
-                        <HiOutlineFolder className="w-5 h-5 text-yellow-400" />
-                      ) : (
-                        <HiOutlineDocument className="w-5 h-5 text-gray-400" />
-                      )}
-                      <span className="truncate">{entry.name}</span>
-                    </button>
+                    {entry.isDir || entry.isText ? (
+                      <button
+                        onClick={() => openEntry(entry)}
+                        className="flex items-center gap-2 text-left text-blue-300 hover:text-blue-200"
+                      >
+                        {entry.isDir ? (
+                          <HiOutlineFolder className="w-5 h-5 text-yellow-400" />
+                        ) : (
+                          <HiOutlineDocument className="w-5 h-5 text-gray-400" />
+                        )}
+                        <span className="truncate">{entry.name}</span>
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-2 text-gray-300">
+                        <HiOutlineDocument className="w-5 h-5 text-gray-500" />
+                        <span className="truncate">{entry.name}</span>
+                      </div>
+                    )}
                   </td>
                   <td className="py-2 px-2 text-gray-400">
                     {entry.isDir ? "—" : formatBytes(entry.size)}
@@ -507,6 +515,7 @@ export default function FileBrowser() {
     </div>
   );
 }
+
 
 function buildBreadcrumbs(path: string): Array<{ label: string; path: string }> {
   const crumbs: Array<{ label: string; path: string }> = [{ label: "volumes", path: "" }];

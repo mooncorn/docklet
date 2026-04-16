@@ -5,6 +5,11 @@
   body {
     @apply h-full bg-gray-900 text-white;
   }
+
+  button,
+  a {
+    cursor: pointer;
+  }
 }
 
 @layer components {
@@ -21,7 +26,7 @@
   }
 
   .sidebar {
-    @apply w-64 h-full bg-gray-800 border-r border-gray-700 overflow-y-auto;
+    @apply w-64 h-full bg-gray-800 border-r border-gray-700 flex flex-col;
   }
 
   .content-area {

@@ -22,13 +22,13 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-full flex">
+    <div className="h-full flex">
       <Sidebar
         userRole={user?.role}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
-      <div className="flex-1 flex flex-col min-h-full">
+      <div className="flex-1 flex flex-col overflow-hidden">
         <Header
           username={user?.username}
           onMenuToggle={() => setSidebarOpen(!sidebarOpen)}

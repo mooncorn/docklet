@@ -26,7 +26,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(si.currentLoad).mockResolvedValue({ currentLoad: 42.55 } as never);
   vi.mocked(si.mem).mockResolvedValue({
-    active: 4_000_000_000,
+    active: 2_000_000_000,
     available: 4_000_000_000,
     total: 8_000_000_000,
     free: 500_000_000,

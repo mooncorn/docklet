@@ -198,17 +198,16 @@ export default function SettingsPage() {
         {/* TLS Certificates */}
         <div className="card">
           <h2 className="text-lg font-semibold mb-4">TLS Certificates</h2>
+          <p className="text-sm text-gray-400 mb-4">
+            Upload a custom TLS certificate and private key for your domain.
+            A self-signed certificate is generated automatically on first run.
+            A container restart is required after uploading new certificates.
+          </p>
 
           {/* Current cert status */}
           {isCustomCert ? (
             <div className="bg-green-900/30 border border-green-700 text-green-300 px-4 py-2 rounded-lg text-sm mb-4">
-              Custom certificate active. HTTPS is enabled with your uploaded certificate.
-            </div>
-          ) : (
-            <div className="bg-blue-900/30 border border-blue-700 text-blue-300 px-4 py-2 rounded-lg text-sm mb-4">
-              Self-signed certificate active. HTTPS is enabled, but browsers will show a security
-              warning. This is normal — you can safely proceed past the warning, or upload a
-              CA-signed certificate below for a custom domain.
+              Custom TLS certificate is configured.
             </div>
           )}
 

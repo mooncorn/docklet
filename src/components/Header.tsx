@@ -24,7 +24,7 @@ export default function Header({ username, onMenuToggle, onLogout }: HeaderProps
   }, []);
 
   return (
-    <header className="bg-gray-800 border-b border-gray-700 px-4 py-3 flex items-center justify-between">
+    <header className="h-14 bg-gray-800 border-b border-gray-700 px-4 flex items-center justify-between">
       <button
         onClick={onMenuToggle}
         className="lg:hidden text-gray-400 hover:text-white p-1"

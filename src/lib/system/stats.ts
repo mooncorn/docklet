@@ -34,7 +34,7 @@ export async function getSystemStats(): Promise<SystemStats> {
       model: [cpuInfo.manufacturer, cpuInfo.brand].filter(Boolean).join(" ").trim(),
     },
     mem: {
-      used: mem.active ?? 0,
+      used: (mem.total ?? 0) - (mem.available ?? mem.free ?? 0),
       total: mem.total ?? 0,
       free: mem.available ?? mem.free ?? 0,
     },

@@ -51,17 +51,17 @@ export default function Sidebar({ userRole, isOpen, onClose }: SidebarProps) {
       )}
 
       <aside
-        className={`sidebar fixed lg:relative z-50 transition-transform duration-300 ease-in-out ${
+        className={`sidebar fixed inset-y-0 lg:relative lg:inset-y-auto z-50 transition-transform duration-300 ease-in-out ${
           isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
-        <div className="p-4 border-b border-gray-700">
+        <div className="h-14 px-4 border-b border-gray-700 flex items-center">
           <Link href="/dashboard" className="text-xl font-bold text-white">
             Docklet
           </Link>
         </div>
 
-        <nav className="p-3 space-y-1">
+        <nav className="p-3 space-y-1 flex-1 overflow-y-auto">
           {filteredItems.map((item) => {
             const isActive = pathname.startsWith(item.href);
             return (
