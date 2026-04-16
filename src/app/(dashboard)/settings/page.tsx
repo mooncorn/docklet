@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, type FormEvent } from "react";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Record<string, string>>({});
@@ -10,6 +11,15 @@ export default function SettingsPage() {
   const [certMessage, setCertMessage] = useState("");
   const certRef = useRef<HTMLInputElement>(null);
   const keyRef = useRef<HTMLInputElement>(null);
+
+  // Restart state
+  const [showRestartConfirm, setShowRestartConfirm] = useState(false);
+  const [restarting, setRestarting] = useState(false);
+  const [restartMessage, setRestartMessage] = useState("");
+
+  // Revert-to-self-signed state
+  const [showRevertConfirm, setShowRevertConfirm] = useState(false);
+  const [reverting, setReverting] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -86,6 +96,61 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleRevert() {
+    setReverting(true);
+    setCertMessage("");
+    try {
+      const res = await fetch("/api/settings", { method: "DELETE" });
+      const data = await res.json();
+      if (res.ok) {
+        setCertMessage(data.message);
+        fetchSettings();
+      } else {
+        setCertMessage(data.error || "Failed to revert certificate.");
+      }
+    } catch {
+      setCertMessage("An error occurred.");
+    } finally {
+      setReverting(false);
+      setShowRevertConfirm(false);
+    }
+  }
+
+  async function handleRestart() {
+    setRestarting(true);
+    setRestartMessage("Restarting Docklet...");
+    setShowRestartConfirm(false);
+
+    try {
+      await fetch("/api/system/restart", { method: "POST" });
+    } catch {
+      // Expected — the process exits before the response fully arrives
+    }
+
+    // Poll /api/health until the server comes back up
+    const deadline = Date.now() + 60_000;
+    const poll = async () => {
+      if (Date.now() > deadline) {
+        setRestartMessage(
+          "Docklet did not restart within 60 seconds. Check that your Docker container has a restart policy set."
+        );
+        setRestarting(false);
+        return;
+      }
+      try {
+        const res = await fetch("/api/health");
+        if (res.ok) {
+          window.location.reload();
+          return;
+        }
+      } catch {
+        // Server not yet back — keep polling
+      }
+      setTimeout(poll, 2000);
+    };
+    setTimeout(poll, 2000);
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -93,6 +158,9 @@ export default function SettingsPage() {
       </div>
     );
   }
+
+  const certType = settings.tls_cert_type;
+  const isCustomCert = certType === "custom";
 
   return (
     <div>
@@ -127,19 +195,29 @@ export default function SettingsPage() {
           </form>
         </div>
 
-        {/* TLS Certificate Upload */}
+        {/* TLS Certificates */}
         <div className="card">
           <h2 className="text-lg font-semibold mb-4">TLS Certificates</h2>
-          <p className="text-sm text-gray-400 mb-4">
-            Upload TLS certificate and private key to enable HTTPS.
-            A container restart is required after uploading new certificates.
-          </p>
 
-          {settings.tls_enabled === "true" && (
+          {/* Current cert status */}
+          {isCustomCert ? (
             <div className="bg-green-900/30 border border-green-700 text-green-300 px-4 py-2 rounded-lg text-sm mb-4">
-              TLS is enabled. Certificates are configured.
+              Custom certificate active. HTTPS is enabled with your uploaded certificate.
+            </div>
+          ) : (
+            <div className="bg-blue-900/30 border border-blue-700 text-blue-300 px-4 py-2 rounded-lg text-sm mb-4">
+              Self-signed certificate active. HTTPS is enabled, but browsers will show a security
+              warning. This is normal — you can safely proceed past the warning, or upload a
+              CA-signed certificate below for a custom domain.
             </div>
           )}
+
+          {/* Upload custom cert */}
+          <h3 className="text-sm font-semibold text-gray-200 mb-1">Upload Custom Certificate</h3>
+          <p className="text-sm text-gray-400 mb-4">
+            Upload a CA-signed certificate and private key to use with a custom domain.
+            A restart is required after uploading.
+          </p>
 
           <form onSubmit={handleCertUpload} className="space-y-4">
             <div>
@@ -166,16 +244,81 @@ export default function SettingsPage() {
               />
             </div>
 
-            {certMessage && (
-              <p className="text-sm text-blue-400">{certMessage}</p>
-            )}
-
             <button type="submit" className="btn-primary">
-              Upload Certificates
+              Upload Certificate
             </button>
           </form>
+
+          {/* Revert to self-signed — only shown when a custom cert is active */}
+          {isCustomCert && (
+            <div className="mt-6 pt-6 border-t border-gray-700">
+              <h3 className="text-sm font-semibold text-gray-200 mb-1">Revert to Self-Signed Certificate</h3>
+              <p className="text-sm text-gray-400 mb-3">
+                Remove the custom certificate and return to the auto-generated self-signed certificate.
+              </p>
+              <button
+                className="btn-secondary"
+                onClick={() => setShowRevertConfirm(true)}
+                disabled={reverting}
+              >
+                {reverting ? "Reverting..." : "Revert to Self-Signed"}
+              </button>
+            </div>
+          )}
+
+          {certMessage && (
+            <p className="text-sm text-blue-400 mt-4">{certMessage}</p>
+          )}
+        </div>
+
+        {/* System */}
+        <div className="card">
+          <h2 className="text-lg font-semibold mb-4">System</h2>
+          <p className="text-sm text-gray-400 mb-4">
+            Restart Docklet to apply certificate changes or configuration updates.
+            Requires Docker restart policy{" "}
+            <code className="bg-gray-700 px-1 rounded text-xs">--restart=unless-stopped</code>.
+          </p>
+
+          {restarting ? (
+            <div className="flex items-center gap-3">
+              <div className="spinner" />
+              <span className="text-sm text-gray-300">{restartMessage}</span>
+            </div>
+          ) : (
+            <>
+              {restartMessage && (
+                <p className="text-sm text-yellow-400 mb-3">{restartMessage}</p>
+              )}
+              <button
+                className="btn-danger"
+                onClick={() => setShowRestartConfirm(true)}
+              >
+                Restart Docklet
+              </button>
+            </>
+          )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={showRevertConfirm}
+        onClose={() => setShowRevertConfirm(false)}
+        onConfirm={handleRevert}
+        title="Revert to Self-Signed Certificate"
+        message="This will remove your custom certificate and regenerate a self-signed one. Restart Docklet to apply."
+        confirmText="Revert"
+        loading={reverting}
+      />
+
+      <ConfirmDialog
+        open={showRestartConfirm}
+        onClose={() => setShowRestartConfirm(false)}
+        onConfirm={handleRestart}
+        title="Restart Docklet"
+        message="Docklet will restart immediately. You will be reconnected automatically once it comes back up. Make sure your Docker container has a restart policy set."
+        confirmText="Restart"
+      />
     </div>
   );
 }

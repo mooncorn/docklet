@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole, handleApiError } from "@/lib/auth/middleware";
 import { getAllSettings, setSetting } from "@/lib/config";
-import { writeFileSync } from "fs";
+import { writeFileSync, unlinkSync, existsSync } from "fs";
 import { join } from "path";
 import { getDataDir } from "@/lib/db";
+import { ensureSelfSignedCert } from "@/lib/certs/generate";
 
 // Hidden settings that should never be exposed to the client
 const HIDDEN_KEYS = ["jwt_secret"];
@@ -68,10 +69,35 @@ export async function POST(request: NextRequest) {
     writeFileSync(join(certsDir, "key.pem"), keyContent, { mode: 0o600 });
 
     setSetting("tls_enabled", "true");
+    setSetting("tls_cert_type", "custom");
 
     return NextResponse.json({
       success: true,
-      message: "TLS certificates uploaded. Restart the container to apply.",
+      message: "TLS certificates uploaded. Restart Docklet to apply.",
+    });
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
+
+// Revert to self-signed certificate
+export async function DELETE() {
+  try {
+    await requireRole("admin");
+    const certsDir = join(getDataDir(), "certs");
+
+    for (const file of ["cert.pem", "key.pem"]) {
+      const filePath = join(certsDir, file);
+      if (existsSync(filePath)) {
+        unlinkSync(filePath);
+      }
+    }
+
+    await ensureSelfSignedCert(certsDir);
+
+    return NextResponse.json({
+      success: true,
+      message: "Self-signed certificate regenerated. Restart Docklet to apply.",
     });
   } catch (error) {
     return handleApiError(error);

@@ -19,9 +19,14 @@ async function main() {
   const { ensureJwtSecret } = await import("./src/lib/config/index");
   ensureJwtSecret();
 
+  // Ensure TLS certificates exist (auto-generate self-signed if missing)
+  const certsDir = join(dataDir, "certs");
+  const { ensureSelfSignedCert } = await import("./src/lib/certs/generate");
+  await ensureSelfSignedCert(certsDir);
+
   // Check for TLS certificates
-  const certPath = join(dataDir, "certs", "cert.pem");
-  const keyPath = join(dataDir, "certs", "key.pem");
+  const certPath = join(certsDir, "cert.pem");
+  const keyPath = join(certsDir, "key.pem");
   const tlsEnabled = existsSync(certPath) && existsSync(keyPath);
 
   const app = next({ dev, hostname, port });

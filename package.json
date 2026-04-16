@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "node server.js",
-    "server:build": "npx tsc server.ts --outDir . --esModuleInterop --module commonjs --target ES2020 --skipLibCheck",
+    "server:build": "npx tsc server.ts --outDir ./out --esModuleInterop --module commonjs --target ES2020 --skipLibCheck",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -25,6 +25,7 @@
     "next": "16.2.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "selfsigned": "^5.5.0",
     "systeminformation": "^5.31.5",
     "zod": "^4.3.6"
   },

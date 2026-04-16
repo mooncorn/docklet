@@ -1,5 +1,5 @@
-import { getDb } from "@/lib/db";
-import { settings, users } from "@/lib/db/schema";
+import { getDb } from "../db";
+import { settings, users } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { randomBytes } from "crypto";
 
