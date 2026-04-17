@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,6 +12,14 @@ export default function DashboardLayout({
 }) {
   const { user, loading, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [appName, setAppName] = useState("Docklet");
+
+  useEffect(() => {
+    fetch("/api/app-name")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data?.app_name) setAppName(data.app_name); })
+      .catch(() => {});
+  }, []);
 
   if (loading) {
     return (
@@ -25,6 +33,7 @@ export default function DashboardLayout({
     <div className="h-full flex">
       <Sidebar
         userRole={user?.role}
+        appName={appName}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />

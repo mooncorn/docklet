@@ -29,11 +29,12 @@ const navItems: NavItem[] = [
 
 interface SidebarProps {
   userRole?: string;
+  appName?: string;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export default function Sidebar({ userRole, isOpen, onClose }: SidebarProps) {
+export default function Sidebar({ userRole, appName = "Docklet", isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
 
   const filteredItems = navItems.filter(
@@ -57,7 +58,7 @@ export default function Sidebar({ userRole, isOpen, onClose }: SidebarProps) {
       >
         <div className="h-14 px-4 border-b border-gray-700 flex items-center">
           <Link href="/dashboard" className="text-xl font-bold text-white">
-            Docklet
+            {appName}
           </Link>
         </div>
 
