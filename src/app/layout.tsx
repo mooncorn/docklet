@@ -8,7 +8,12 @@ const inter = Inter({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const appName = getSetting("app_name") ?? "Docklet";
+  let appName = "Docklet";
+  try {
+    appName = getSetting("app_name") ?? "Docklet";
+  } catch {
+    // DB unavailable at build time
+  }
   return {
     title: appName,
     description: "Self-hosted Docker container & file management",
