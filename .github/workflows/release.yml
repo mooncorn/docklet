@@ -26,7 +26,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/dpilars/docklet
+          images: ghcr.io/dandylake/docklet
           tags: |
             type=semver,pattern={{version}}
             type=raw,value=latest

@@ -58,7 +58,7 @@ docker run -d --name docklet \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v /home/<user>/docklet-data:/docklet-data \
   --restart always \
-  ghcr.io/dpilars/docklet:latest
+  ghcr.io/dandylake/docklet:latest
 ```
 
 Then open `https://localhost` to complete the setup wizard. Accept the browser warning for the self-signed certificate.
@@ -109,7 +109,7 @@ To back up your instance, copy the entire data directory.
 ```yaml
 services:
   docklet:
-    image: ghcr.io/dpilars/docklet:latest
+    image: ghcr.io/dandylake/docklet:latest
     container_name: docklet
     ports:
       - "80:80"
@@ -123,7 +123,7 @@ services:
 ## Upgrading
 
 ```bash
-docker pull ghcr.io/dpilars/docklet:latest
+docker pull ghcr.io/dandylake/docklet:latest
 docker stop docklet && docker rm docklet
 # Re-run the docker run command — your data persists in the volume
 ```
