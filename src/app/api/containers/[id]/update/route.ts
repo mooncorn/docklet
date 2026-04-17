@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod/v4";
-import { requireAuth, handleApiError } from "@/lib/auth/middleware";
+import { requireAuth, AuthError, handleApiError } from "@/lib/auth/middleware";
 import {
   inspectContainer,
   stopContainer,
   removeContainer,
   createContainer,
   startContainer,
+  isSelfContainer,
 } from "@/lib/docker/containers";
 
 const updateContainerSchema = z.object({
@@ -56,8 +57,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth();
+    const session = await requireAuth();
     const { id } = await params;
+    if (session.role !== "admin" && isSelfContainer(id)) {
+      throw new AuthError("Forbidden", 403);
+    }
     const body = await request.json();
     const input = updateContainerSchema.parse(body);
 

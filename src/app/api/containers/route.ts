@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod/v4";
 import { requireAuth, handleApiError } from "@/lib/auth/middleware";
-import { listContainers, createContainer, startContainer } from "@/lib/docker/containers";
+import { listContainers, createContainer, startContainer, isSelfContainer } from "@/lib/docker/containers";
 
 const createContainerSchema = z.object({
   name: z.string().min(1),
@@ -48,9 +48,13 @@ const createContainerSchema = z.object({
 
 export async function GET() {
   try {
-    await requireAuth();
+    const session = await requireAuth();
     const containers = await listContainers();
-    return NextResponse.json(containers);
+    const visible =
+      session.role === "admin"
+        ? containers
+        : containers.filter((c) => !isSelfContainer(c.id));
+    return NextResponse.json(visible);
   } catch (error) {
     return handleApiError(error);
   }

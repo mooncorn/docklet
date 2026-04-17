@@ -1,5 +1,6 @@
 import { mkdirSync } from "fs";
 import { resolve } from "path";
+import { hostname } from "os";
 import { getDocker } from "./client";
 import { getDataDir } from "@/lib/db";
 import type {
@@ -257,6 +258,15 @@ export async function execInContainer(
       }
     });
   });
+}
+
+/** Returns true if the given container ID matches the running Docklet instance.
+ *  Docker sets container hostname to the 12-char short container ID.
+ *  Returns false when not running inside a container (e.g. in development). */
+export function isSelfContainer(id: string): boolean {
+  const self = hostname();
+  if (!/^[0-9a-f]{12}$/.test(self)) return false;
+  return id.startsWith(self) || self.startsWith(id);
 }
 
 // Exported for testing

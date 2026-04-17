@@ -1,14 +1,17 @@
 import { NextRequest } from "next/server";
-import { requireAuth, handleApiError } from "@/lib/auth/middleware";
-import { getContainerLogs } from "@/lib/docker/containers";
+import { requireAuth, AuthError, handleApiError } from "@/lib/auth/middleware";
+import { getContainerLogs, isSelfContainer } from "@/lib/docker/containers";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth();
+    const session = await requireAuth();
     const { id } = await params;
+    if (session.role !== "admin" && isSelfContainer(id)) {
+      throw new AuthError("Forbidden", 403);
+    }
     const tail = parseInt(
       request.nextUrl.searchParams.get("tail") ?? "200",
       10
