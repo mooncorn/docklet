@@ -209,7 +209,7 @@ export default function SettingsPage() {
             <div className="bg-green-900/30 border border-green-700 text-green-300 px-4 py-2 rounded-lg text-sm mb-4">
               Custom TLS certificate is configured.
             </div>
-          )}
+          ) : null}
 
           {/* Upload custom cert */}
           <h3 className="text-sm font-semibold text-gray-200 mb-1">Upload Custom Certificate</h3>
