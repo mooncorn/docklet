@@ -1,8 +1,6 @@
 # Docklet
 
-**The problem:** Managing Docker containers on a remote server means memorizing CLI commands, SSHing in constantly, and having no convenient UI for logs, images, or file operations.
-
-**The solution:** Docklet is a self-hosted web interface for Docker that you deploy once and access from any browser. No third-party accounts, no cloud dependency — just a single `docker run` command and you're managing containers through a clean dashboard.
+A self-hosted Docker management UI — one `docker run` command, then manage containers, images, logs, and files from any browser. No accounts, no cloud.
 
 ## Table of Contents
 
@@ -15,7 +13,7 @@
 - [Docker Compose](#docker-compose)
 - [Upgrading](#upgrading)
 - [Testing](#testing)
-- [Common Issues](#common-issues)
+- [Common Issues](docs/COMMON_ISSUES.md)
 - [Development](#development)
 
 ## Features
@@ -60,7 +58,7 @@ docker run -d --name docklet \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v /home/<user>/docklet-data:/docklet-data \
   --restart always \
-  ghcr.io/mooncorn/docklet:latest
+  ghcr.io/dpilars/docklet:latest
 ```
 
 Then open `https://localhost` to complete the setup wizard. Accept the browser warning for the self-signed certificate.
@@ -111,7 +109,7 @@ To back up your instance, copy the entire data directory.
 ```yaml
 services:
   docklet:
-    image: ghcr.io/mooncorn/docklet:latest
+    image: ghcr.io/dpilars/docklet:latest
     container_name: docklet
     ports:
       - "80:80"
@@ -125,7 +123,7 @@ services:
 ## Upgrading
 
 ```bash
-docker pull ghcr.io/mooncorn/docklet:latest
+docker pull ghcr.io/dpilars/docklet:latest
 docker stop docklet && docker rm docklet
 # Re-run the docker run command — your data persists in the volume
 ```
@@ -150,16 +148,10 @@ npm run test:e2e
 
 Run `npm run typecheck` to catch TypeScript errors before running tests.
 
-## Common Issues
-
-**Setup wizard doesn't appear / dashboard shows 401 errors**
-
-Your browser may be holding a `docklet_setup` cookie from a previous run. Clear cookies for the site (DevTools → Application → Cookies → right-click → Clear) and reload.
-
 ## Development
 
 ```bash
 DOCKLET_DATA_DIR=/tmp/docklet-dev-data npm run dev
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and [CLAUDE.md](CLAUDE.md) for architecture details and conventions.
+See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for contribution guidelines.
