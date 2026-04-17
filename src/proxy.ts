@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
-const PUBLIC_PATHS = ["/login", "/setup", "/api/auth/login", "/api/auth/setup"];
+const PUBLIC_PATHS = ["/login", "/setup", "/api/auth/login", "/api/auth/setup", "/api/app-name"];
 const STATIC_PREFIXES = ["/_next", "/favicon.ico"];
 
 export async function proxy(request: NextRequest) {

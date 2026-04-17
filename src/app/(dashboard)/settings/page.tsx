@@ -118,7 +118,7 @@ export default function SettingsPage() {
 
   async function handleRestart() {
     setRestarting(true);
-    setRestartMessage("Restarting Docklet...");
+    setRestartMessage(`Restarting ${settings.app_name || "Docklet"}...`);
     setShowRestartConfirm(false);
 
     try {
@@ -132,7 +132,7 @@ export default function SettingsPage() {
     const poll = async () => {
       if (Date.now() > deadline) {
         setRestartMessage(
-          "Docklet did not restart within 60 seconds. Check that your Docker container has a restart policy set."
+          `${settings.app_name || "Docklet"} did not restart within 60 seconds. Check that your Docker container has a restart policy set.`
         );
         setRestarting(false);
         return;
@@ -274,7 +274,7 @@ export default function SettingsPage() {
         <div className="card">
           <h2 className="text-lg font-semibold mb-4">System</h2>
           <p className="text-sm text-gray-400 mb-4">
-            Restart Docklet to apply certificate changes or configuration updates.
+            Restart {settings.app_name || "Docklet"} to apply certificate changes or configuration updates.
             Requires Docker restart policy{" "}
             <code className="bg-gray-700 px-1 rounded text-xs">--restart=unless-stopped</code>.
           </p>
@@ -293,7 +293,7 @@ export default function SettingsPage() {
                 className="btn-danger"
                 onClick={() => setShowRestartConfirm(true)}
               >
-                Restart Docklet
+                Restart {settings.app_name || "Docklet"}
               </button>
             </>
           )}
@@ -305,7 +305,7 @@ export default function SettingsPage() {
         onClose={() => setShowRevertConfirm(false)}
         onConfirm={handleRevert}
         title="Revert to Self-Signed Certificate"
-        message="This will remove your custom certificate and regenerate a self-signed one. Restart Docklet to apply."
+        message={`This will remove your custom certificate and regenerate a self-signed one. Restart ${settings.app_name || "Docklet"} to apply.`}
         confirmText="Revert"
         loading={reverting}
       />
@@ -314,8 +314,8 @@ export default function SettingsPage() {
         open={showRestartConfirm}
         onClose={() => setShowRestartConfirm(false)}
         onConfirm={handleRestart}
-        title="Restart Docklet"
-        message="Docklet will restart immediately. You will be reconnected automatically once it comes back up. Make sure your Docker container has a restart policy set."
+        title={`Restart ${settings.app_name || "Docklet"}`}
+        message={`${settings.app_name || "Docklet"} will restart immediately. You will be reconnected automatically once it comes back up. Make sure your Docker container has a restart policy set.`}
         confirmText="Restart"
       />
     </div>

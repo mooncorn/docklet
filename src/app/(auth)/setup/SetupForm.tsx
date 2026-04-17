@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
 type Step = "account" | "complete";
@@ -13,6 +13,14 @@ export default function SetupForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [appName, setAppName] = useState("Docklet");
+
+  useEffect(() => {
+    fetch("/api/app-name")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data?.app_name) setAppName(data.app_name); })
+      .catch(() => {});
+  }, []);
 
   async function handleCreateAdmin(e: FormEvent) {
     e.preventDefault();
@@ -59,7 +67,7 @@ export default function SetupForm() {
             <div className="text-4xl mb-4">&#10003;</div>
             <h2 className="text-xl font-bold text-white mb-2">Setup Complete</h2>
             <p className="text-gray-400 mb-6">
-              Your Docklet instance is ready to use.
+              Your {appName} instance is ready to use.
             </p>
             <button
               onClick={() => {
@@ -81,7 +89,7 @@ export default function SetupForm() {
       <div className="w-full max-w-md">
         <div className="card">
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-white">Welcome to Docklet</h1>
+            <h1 className="text-2xl font-bold text-white">Welcome to {appName}</h1>
             <p className="text-gray-400 mt-1">Create your admin account to get started</p>
           </div>
 

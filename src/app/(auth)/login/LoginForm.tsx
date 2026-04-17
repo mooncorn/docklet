@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
 export default function LoginForm() {
@@ -9,6 +9,14 @@ export default function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [appName, setAppName] = useState("Docklet");
+
+  useEffect(() => {
+    fetch("/api/app-name")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data?.app_name) setAppName(data.app_name); })
+      .catch(() => {});
+  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -43,7 +51,7 @@ export default function LoginForm() {
       <div className="w-full max-w-sm">
         <div className="card">
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-white">Docklet</h1>
+            <h1 className="text-2xl font-bold text-white">{appName}</h1>
             <p className="text-gray-400 mt-1">Sign in to your account</p>
           </div>
 
