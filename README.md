@@ -19,7 +19,7 @@ docker run -d --name docklet \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v docklet-data:/docklet-data \
   --restart always \
-  docklet:latest
+  ghcr.io/mooncorn/docklet:latest
 ```
 
 Then open `https://localhost` to complete the setup wizard. A self-signed certificate is generated automatically on first run — accept the browser warning to proceed.
@@ -71,7 +71,7 @@ To back up your Docklet instance, copy the entire data volume.
 ```yaml
 services:
   docklet:
-    image: docklet:latest
+    image: ghcr.io/mooncorn/docklet:latest
     container_name: docklet
     ports:
       - "80:80"
@@ -88,7 +88,7 @@ volumes:
 ## Upgrading
 
 ```bash
-docker pull docklet:latest
+docker pull ghcr.io/mooncorn/docklet:latest
 docker stop docklet && docker rm docklet
 # Re-run the docker run command — your data persists in the volume
 ```
