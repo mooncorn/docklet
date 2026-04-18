@@ -1,19 +1,6 @@
-import { type APIRequestContext } from "@playwright/test";
-import { test, expect, ADMIN_CREDS } from "./fixtures/auth.fixtures";
+import { test, expect, getAdminCookie } from "./fixtures/auth.fixtures";
 import { ImagesPage } from "./pom/ImagesPage";
 import { ContainersPage } from "./pom/ContainersPage";
-
-async function getAdminCookie(request: APIRequestContext): Promise<string> {
-  await request.post("/api/auth/setup", {
-    data: {
-      username: ADMIN_CREDS.username,
-      password: ADMIN_CREDS.password,
-      confirmPassword: ADMIN_CREDS.password,
-    },
-  });
-  const res = await request.post("/api/auth/login", { data: ADMIN_CREDS });
-  return res.headers()["set-cookie"] ?? "";
-}
 
 test.describe("Admin-only page access", () => {
   test("non-admin visiting /users is redirected", async ({ userPage }) => {
@@ -78,7 +65,7 @@ test.describe("Images RBAC", () => {
     const images = new ImagesPage(userPage);
     await images.goto();
     await expect(
-      userPage.locator(".card button.btn-icon")
+      userPage.getByRole("button", { name: "Delete image" })
     ).toHaveCount(0);
   });
 
@@ -167,9 +154,9 @@ test.describe("Container access for non-admin", () => {
     userPage,
   }) => {
     await userPage.goto(`/containers/${runningContainerId}`);
-    await userPage.locator(".tab-bar").waitFor({ state: "visible" });
+    await userPage.getByRole("button", { name: "Logs" }).waitFor({ state: "visible" });
     await expect(
-      userPage.locator('input[placeholder="Enter command..."]')
+      userPage.getByPlaceholder("Enter command...")
     ).toHaveCount(0);
   });
 });

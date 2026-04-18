@@ -1,13 +1,8 @@
 import { type APIRequestContext } from "@playwright/test";
-import { test, expect, ADMIN_CREDS } from "./fixtures/auth.fixtures";
+import { test, expect, ADMIN_CREDS, getAdminCookie } from "./fixtures/auth.fixtures";
 import { UsersPage } from "./pom/UsersPage";
 
 test.describe.configure({ mode: "serial" });
-
-async function getAdminCookie(request: APIRequestContext): Promise<string> {
-  const res = await request.post("/api/auth/login", { data: ADMIN_CREDS });
-  return res.headers()["set-cookie"] ?? "";
-}
 
 async function apiDeleteUserByUsername(
   request: APIRequestContext,
@@ -142,7 +137,7 @@ test.describe("Edit User", () => {
     const res = await request.post("/api/auth/login", {
       data: { username: "editmod1", password: "updatedpass456" },
     });
-    await expect(res.ok()).toBe(true);
+    expect(res).toBeOK();
   });
 });
 

@@ -21,13 +21,13 @@ export class ContainerDetailPage {
     this.editButton = page.getByRole("button", { name: "Edit container" });
     this.deleteButton = page.getByRole("button", { name: "Delete container" });
     this.statusBadge = page.getByTestId("status-badge");
-    this.execInput = page.locator('input[placeholder="Enter command..."]');
+    this.execInput = page.getByPlaceholder("Enter command...");
     this.execRunButton = page.getByRole("button", { name: "Run" });
   }
 
   async goto(containerId: string): Promise<void> {
     await this.page.goto(`/containers/${containerId}`);
-    await this.page.locator(".tab-bar").waitFor({ state: "visible" });
+    await this.page.getByRole("button", { name: "Logs" }).waitFor({ state: "visible" });
   }
 
   async selectTab(tab: ContainerTab): Promise<void> {
@@ -68,7 +68,7 @@ export class ContainerDetailPage {
   async execCommand(cmd: string): Promise<string> {
     await this.execInput.fill(cmd);
     await this.execRunButton.click();
-    const output = this.page.locator("pre.log-viewer");
+    const output = this.page.getByTestId("exec-output");
     await output.waitFor({ state: "visible", timeout: 15_000 });
     return (await output.textContent()) ?? "";
   }

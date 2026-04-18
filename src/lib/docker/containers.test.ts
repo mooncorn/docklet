@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { faker } from "@faker-js/faker";
 
 const mockContainer = {
   inspect: vi.fn(),
@@ -75,7 +76,7 @@ describe("listContainers", () => {
     });
   });
 
-  it("strips leading slash from container names", async () => {
+  it("when docker returns a container with leading slash in name — strips the slash", async () => {
     mockDocker.listContainers.mockResolvedValue([
       {
         Id: "def456",
@@ -92,7 +93,7 @@ describe("listContainers", () => {
     expect(result[0].name).toBe("test");
   });
 
-  it("returns empty array when no containers", async () => {
+  it("when docker returns no containers — returns empty array", async () => {
     mockDocker.listContainers.mockResolvedValue([]);
     const result = await listContainers();
     expect(result).toEqual([]);
@@ -134,42 +135,35 @@ describe("inspectContainer", () => {
     });
 
     const result = await inspectContainer("abc123");
-    expect(result.id).toBe("abc123");
-    expect(result.name).toBe("my-container");
-    expect(result.image).toBe("nginx:latest");
-    expect(result.state).toBe("running");
-    expect(result.env).toEqual(["FOO=bar"]);
-    expect(result.hostname).toBe("myhost");
-    expect(result.cmd).toEqual(["nginx", "-g", "daemon off;"]);
-    expect(result.mounts).toHaveLength(1);
-    expect(result.mounts[0].source).toBe("/host/path");
-    expect(result.ports).toHaveLength(1);
-    expect(result.ports[0]).toEqual({
-      containerPort: 80,
-      hostPort: 8080,
-      protocol: "tcp",
-      hostIp: "0.0.0.0",
+    expect(result).toMatchObject({
+      id: "abc123",
+      name: "my-container",
+      image: "nginx:latest",
+      state: "running",
+      env: ["FOO=bar"],
+      hostname: "myhost",
+      cmd: ["nginx", "-g", "daemon off;"],
+      mounts: [{ source: "/host/path" }],
+      ports: [{ containerPort: 80, hostPort: 8080, protocol: "tcp", hostIp: "0.0.0.0" }],
+      restartPolicy: { name: "always", maximumRetryCount: 0 },
+      resources: { cpuLimit: 1, memoryLimit: 536870912 },
+      labels: { app: "web" },
     });
-    expect(result.restartPolicy).toEqual({ name: "always", maximumRetryCount: 0 });
-    expect(result.resources.cpuLimit).toBe(1);
-    expect(result.resources.memoryLimit).toBe(536870912);
-    expect(result.labels).toEqual({ app: "web" });
   });
 });
 
 describe("buildCreateOptions", () => {
   it("builds basic options", () => {
-    const opts = buildCreateOptions({
-      name: "test",
-      image: "nginx:latest",
-    });
-    expect(opts.name).toBe("test");
-    expect(opts.Image).toBe("nginx:latest");
+    const name = faker.word.noun();
+    const image = `${faker.word.noun()}:latest`;
+    const opts = buildCreateOptions({ name, image });
+    expect(opts.name).toBe(name);
+    expect(opts.Image).toBe(image);
   });
 
   it("builds port bindings", () => {
     const opts = buildCreateOptions({
-      name: "test",
+      name: faker.word.noun(),
       image: "nginx",
       ports: [{ containerPort: 80, hostPort: 8080, protocol: "tcp" }],
     });
@@ -181,9 +175,8 @@ describe("buildCreateOptions", () => {
 
   it("builds volume binds from pre-resolved volumes", () => {
     const opts = buildCreateOptions({
-      name: "test",
+      name: faker.word.noun(),
       image: "nginx",
-      // buildCreateOptions receives already-resolved volumes with hostPath
       volumes: [{ hostPath: "/docklet-data/volumes/test/app/data", containerPath: "/app/data", mode: "ro" }],
     });
     expect(opts.HostConfig?.Binds).toEqual([
@@ -193,7 +186,7 @@ describe("buildCreateOptions", () => {
 
   it("builds resource limits", () => {
     const opts = buildCreateOptions({
-      name: "test",
+      name: faker.word.noun(),
       image: "nginx",
       resources: { cpuLimit: 2, memoryLimit: 1073741824 },
     });
@@ -203,7 +196,7 @@ describe("buildCreateOptions", () => {
 
   it("builds restart policy", () => {
     const opts = buildCreateOptions({
-      name: "test",
+      name: faker.word.noun(),
       image: "nginx",
       restartPolicy: { name: "on-failure", maximumRetryCount: 5 },
     });
@@ -301,8 +294,11 @@ describe("resolveVolumePath", () => {
     );
   });
 
-  it("throws on path traversal attempt", () => {
+  it("when path traverses above root with leading segment — throws Invalid volume path", () => {
     expect(() => resolveVolumePath("app", "/../etc")).toThrow("Invalid volume path");
+  });
+
+  it("when path traverses above root mid-path — throws Invalid volume path", () => {
     expect(() => resolveVolumePath("app", "/data/../etc")).toThrow("Invalid volume path");
   });
 });

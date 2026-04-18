@@ -2,28 +2,21 @@ import {
   type APIRequestContext,
   expect as pwExpect,
 } from "@playwright/test";
-import { test, ADMIN_CREDS } from "./fixtures/auth.fixtures";
+import { test, getAdminCookie } from "./fixtures/auth.fixtures";
 import { ContainersPage } from "./pom/ContainersPage";
 import { CreateContainerPage } from "./pom/CreateContainerPage";
 import { ContainerDetailPage } from "./pom/ContainerDetailPage";
 
+// Serial mode is required because:
+// 1. Container List tests assert empty state, which breaks if lifecycle/delete
+//    describe blocks run their beforeAll hooks in parallel.
+// 2. With fullyParallel:true each parallel test spawns its own worker, which
+//    would invoke beforeAll independently causing duplicate container names.
 test.describe.configure({ mode: "serial" });
 
 // ---------------------------------------------------------------------------
 // API helpers: establish known state without UI interactions
 // ---------------------------------------------------------------------------
-
-async function getAdminCookie(request: APIRequestContext): Promise<string> {
-  await request.post("/api/auth/setup", {
-    data: {
-      username: ADMIN_CREDS.username,
-      password: ADMIN_CREDS.password,
-      confirmPassword: ADMIN_CREDS.password,
-    },
-  });
-  const res = await request.post("/api/auth/login", { data: ADMIN_CREDS });
-  return res.headers()["set-cookie"] ?? "";
-}
 
 async function apiCreateContainer(
   request: APIRequestContext,
@@ -60,6 +53,16 @@ async function apiStartContainer(
 ): Promise<void> {
   const cookie = await getAdminCookie(request);
   await request.post(`/api/containers/${id}/start`, {
+    headers: { Cookie: cookie },
+  });
+}
+
+async function apiStopContainer(
+  request: APIRequestContext,
+  id: string
+): Promise<void> {
+  const cookie = await getAdminCookie(request);
+  await request.post(`/api/containers/${id}/stop`, {
     headers: { Cookie: cookie },
   });
 }
@@ -160,7 +163,8 @@ test.describe("Container Ports and Environment", () => {
 
 // ---------------------------------------------------------------------------
 // Container Lifecycle
-// API creates container in stopped state; each test drives a specific transition
+// Each test resets the container to its required precondition via API so
+// tests are fully independent and can run in any order.
 // ---------------------------------------------------------------------------
 
 test.describe("Container Lifecycle", () => {
@@ -180,14 +184,16 @@ test.describe("Container Lifecycle", () => {
     await apiDeleteContainer(request, containerId);
   });
 
-  test("can start a stopped container", async ({ adminPage }) => {
+  test("can start a stopped container", async ({ adminPage, request }) => {
+    await apiStopContainer(request, containerId);
     const detail = new ContainerDetailPage(adminPage);
     await detail.goto(containerId);
     await detail.start();
     await pwExpect(detail.statusBadge).toContainText(/running/i);
   });
 
-  test("can stop a running container", async ({ adminPage }) => {
+  test("can stop a running container", async ({ adminPage, request }) => {
+    await apiStartContainer(request, containerId);
     const detail = new ContainerDetailPage(adminPage);
     await detail.goto(containerId);
     await detail.stop();

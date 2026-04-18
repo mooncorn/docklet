@@ -1,14 +1,16 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { mkdtempSync, rmSync } from "fs";
+import { mkdtempSync, rmSync, existsSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 
-describe("database", () => {
+describe("initDataDirs", () => {
   let tmpDir: string;
 
-  beforeAll(() => {
+  beforeAll(async () => {
     tmpDir = mkdtempSync(join(tmpdir(), "docklet-test-"));
     process.env.DOCKLET_DATA_DIR = tmpDir;
+    const { initDataDirs } = await import("./index");
+    initDataDirs();
   });
 
   afterAll(() => {
@@ -16,14 +18,15 @@ describe("database", () => {
     delete process.env.DOCKLET_DATA_DIR;
   });
 
-  it("should initialize data directories", async () => {
-    // Dynamic import to pick up env var
-    const { initDataDirs } = await import("./index");
-    initDataDirs();
-
-    const { existsSync } = await import("fs");
+  it("creates the db/ subdirectory", () => {
     expect(existsSync(join(tmpDir, "db"))).toBe(true);
+  });
+
+  it("creates the certs/ subdirectory", () => {
     expect(existsSync(join(tmpDir, "certs"))).toBe(true);
+  });
+
+  it("creates the backups/ subdirectory", () => {
     expect(existsSync(join(tmpDir, "backups"))).toBe(true);
   });
 });

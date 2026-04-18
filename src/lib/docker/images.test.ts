@@ -41,7 +41,7 @@ describe("listImages", () => {
     });
   });
 
-  it("filters out <none>:<none> images", async () => {
+  it("when image has <none>:<none> tag — filters it out", async () => {
     mockDocker.listImages.mockResolvedValue([
       {
         Id: "sha256:abc123",
@@ -62,7 +62,7 @@ describe("listImages", () => {
     expect(result[0].repoTags).toEqual(["alpine:latest"]);
   });
 
-  it("filters out images with no tags", async () => {
+  it("when image has no tags — filters it out", async () => {
     mockDocker.listImages.mockResolvedValue([
       {
         Id: "sha256:abc123",
@@ -76,7 +76,7 @@ describe("listImages", () => {
     expect(result).toHaveLength(0);
   });
 
-  it("returns empty array when no images", async () => {
+  it("when docker returns no images — returns empty array", async () => {
     mockDocker.listImages.mockResolvedValue([]);
     const result = await listImages();
     expect(result).toEqual([]);
@@ -84,14 +84,14 @@ describe("listImages", () => {
 });
 
 describe("removeImage", () => {
-  it("removes an image", async () => {
+  it("removes an image with force=false by default", async () => {
     mockImage.remove.mockResolvedValue(undefined);
     await removeImage("sha256:abc123");
     expect(mockDocker.getImage).toHaveBeenCalledWith("sha256:abc123");
     expect(mockImage.remove).toHaveBeenCalledWith({ force: false });
   });
 
-  it("force removes an image", async () => {
+  it("when force=true — passes force flag to docker", async () => {
     mockImage.remove.mockResolvedValue(undefined);
     await removeImage("sha256:abc123", true);
     expect(mockImage.remove).toHaveBeenCalledWith({ force: true });
@@ -99,21 +99,21 @@ describe("removeImage", () => {
 });
 
 describe("parsePullProgress", () => {
-  it("parses valid JSON progress", () => {
+  it("parses valid JSON progress line", () => {
     const result = parsePullProgress(
       '{"status":"Pulling fs layer","id":"abc123"}'
     );
     expect(result).toEqual({ status: "Pulling fs layer", id: "abc123" });
   });
 
-  it("parses progress with detail", () => {
+  it("parses progress line containing progressDetail", () => {
     const result = parsePullProgress(
       '{"status":"Downloading","id":"abc123","progressDetail":{"current":1024,"total":4096}}'
     );
     expect(result?.progressDetail).toEqual({ current: 1024, total: 4096 });
   });
 
-  it("returns null for invalid JSON", () => {
+  it("when input is not valid JSON — returns null", () => {
     const result = parsePullProgress("not json");
     expect(result).toBeNull();
   });

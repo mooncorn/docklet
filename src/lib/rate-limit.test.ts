@@ -6,7 +6,7 @@ import {
   __resetRateLimits,
 } from "./rate-limit";
 
-describe("rate-limit", () => {
+describe("checkRateLimit", () => {
   beforeEach(() => {
     __resetRateLimits();
     vi.useFakeTimers();
@@ -17,24 +17,24 @@ describe("rate-limit", () => {
     vi.useRealTimers();
   });
 
-  it("allows requests up to max", () => {
+  it("when called up to max times — does not throw", () => {
     for (let i = 0; i < 5; i++) {
       expect(() => checkRateLimit("k", 5, 60_000)).not.toThrow();
     }
   });
 
-  it("blocks the (max+1)th request", () => {
+  it("when called max+1 times within window — throws RateLimitError", () => {
     for (let i = 0; i < 5; i++) checkRateLimit("k", 5, 60_000);
     expect(() => checkRateLimit("k", 5, 60_000)).toThrow(RateLimitError);
   });
 
-  it("unblocks after the window advances", () => {
+  it("when window advances past limit — allows requests again", () => {
     for (let i = 0; i < 5; i++) checkRateLimit("k", 5, 60_000);
     vi.advanceTimersByTime(60_001);
     expect(() => checkRateLimit("k", 5, 60_000)).not.toThrow();
   });
 
-  it("tracks keys independently", () => {
+  it("when two different keys are used — tracks them independently", () => {
     for (let i = 0; i < 5; i++) checkRateLimit("a", 5, 60_000);
     expect(() => checkRateLimit("b", 5, 60_000)).not.toThrow();
     expect(() => checkRateLimit("a", 5, 60_000)).toThrow(RateLimitError);
@@ -46,15 +46,15 @@ describe("getClientIp", () => {
     return new Request("http://x/", { headers });
   }
 
-  it("returns first entry of x-forwarded-for", () => {
+  it("when x-forwarded-for is present — returns first entry", () => {
     expect(getClientIp(makeReq({ "x-forwarded-for": "1.2.3.4, 5.6.7.8" }))).toBe("1.2.3.4");
   });
 
-  it("falls back to x-real-ip", () => {
+  it("when only x-real-ip is present — falls back to x-real-ip", () => {
     expect(getClientIp(makeReq({ "x-real-ip": "9.9.9.9" }))).toBe("9.9.9.9");
   });
 
-  it("returns 'unknown' when no header is present", () => {
+  it("when no IP header is present — returns 'unknown'", () => {
     expect(getClientIp(makeReq({}))).toBe("unknown");
   });
 });

@@ -166,3 +166,4 @@ export const test = base.extend<AuthFixtures>({
 });
 
 export { expect } from "@playwright/test";
+export { getAdminCookieHeader as getAdminCookie };

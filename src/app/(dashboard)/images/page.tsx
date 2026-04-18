@@ -273,12 +273,13 @@ function ImageCard({
   const shortId = image.id.replace("sha256:", "").slice(0, 12);
 
   return (
-    <div className="card">
+    <div data-testid="image-card" className="card">
       <div className="flex items-start justify-between gap-2 mb-2">
         <span className="text-blue-300 font-medium break-all">{tag}</span>
         {isAdmin && (
           <button
             onClick={onDelete}
+            aria-label="Delete image"
             className="btn-icon text-red-400 hover:text-red-300 shrink-0"
           >
             <HiOutlineTrash className="w-4 h-4" />

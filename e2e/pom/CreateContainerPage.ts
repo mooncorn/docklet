@@ -35,11 +35,10 @@ export class CreateContainerPage {
     protocol: "TCP" | "UDP" = "TCP"
   ): Promise<void> {
     await this.page.getByRole("button", { name: "Add Port" }).click();
-    const hostInputs = this.page.locator('input[placeholder="Host Port"]');
-    const lastHostInput = hostInputs.last();
+    const lastHostInput = this.page.getByPlaceholder("Host Port").last();
     await lastHostInput.fill(hostPort);
     const row = lastHostInput.locator("..");
-    await row.locator('input[placeholder="Container Port"]').fill(containerPort);
+    await row.getByPlaceholder("Container Port").fill(containerPort);
     if (protocol === "UDP") {
       await row.locator("select").selectOption("udp");
     }
@@ -47,10 +46,10 @@ export class CreateContainerPage {
 
   async addEnvVar(key: string, value: string): Promise<void> {
     await this.page.getByRole("button", { name: "Add Variable" }).click();
-    const keyInputs = this.page.locator('input[placeholder="KEY"]');
-    await keyInputs.last().fill(key);
-    const row = keyInputs.last().locator("..");
-    await row.locator('input[placeholder="value"]').fill(value);
+    const lastKeyInput = this.page.getByPlaceholder("KEY").last();
+    await lastKeyInput.fill(key);
+    const row = lastKeyInput.locator("..");
+    await row.getByPlaceholder("value").fill(value);
   }
 
   async submit(): Promise<void> {

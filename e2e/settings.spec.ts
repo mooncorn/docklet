@@ -1,5 +1,5 @@
 import { type APIRequestContext } from "@playwright/test";
-import { test, expect, ADMIN_CREDS } from "./fixtures/auth.fixtures";
+import { test, expect, getAdminCookie } from "./fixtures/auth.fixtures";
 import { SettingsPage } from "./pom/SettingsPage";
 import { LoginPage } from "./pom/LoginPage";
 
@@ -9,8 +9,7 @@ async function restoreAppName(
   request: APIRequestContext,
   name: string
 ): Promise<void> {
-  const loginRes = await request.post("/api/auth/login", { data: ADMIN_CREDS });
-  const cookie = loginRes.headers()["set-cookie"] ?? "";
+  const cookie = await getAdminCookie(request);
   await request.put("/api/settings", {
     headers: { Cookie: cookie },
     data: { app_name: name },
@@ -21,10 +20,7 @@ test.describe("App Name Setting", () => {
   let originalName: string;
 
   test.beforeAll(async ({ request }) => {
-    const loginRes = await request.post("/api/auth/login", {
-      data: ADMIN_CREDS,
-    });
-    const cookie = loginRes.headers()["set-cookie"] ?? "";
+    const cookie = await getAdminCookie(request);
     const res = await request.get("/api/settings", {
       headers: { Cookie: cookie },
     });

@@ -16,7 +16,7 @@ describe("ensureSelfSignedCert", () => {
     vi.clearAllMocks();
   });
 
-  it("generates cert and key when neither exists", async () => {
+  it("when neither cert nor key exists — generates both and calls setSetting", async () => {
     const { existsSync } = await import("fs");
     const { setSetting } = await import("@/lib/config");
     const { ensureSelfSignedCert } = await import("./generate");
@@ -31,7 +31,7 @@ describe("ensureSelfSignedCert", () => {
     rmSync(certsDir, { recursive: true });
   });
 
-  it("is a no-op when both cert and key already exist", async () => {
+  it("when both cert and key already exist — is a no-op", async () => {
     const { writeFileSync, readFileSync } = await import("fs");
     const { setSetting } = await import("@/lib/config");
     const { ensureSelfSignedCert } = await import("./generate");
@@ -50,7 +50,7 @@ describe("ensureSelfSignedCert", () => {
     rmSync(certsDir, { recursive: true });
   });
 
-  it("generates cert when only key is missing", async () => {
+  it("when only key is missing — regenerates the certificate", async () => {
     const { writeFileSync, existsSync } = await import("fs");
     const { ensureSelfSignedCert } = await import("./generate");
 

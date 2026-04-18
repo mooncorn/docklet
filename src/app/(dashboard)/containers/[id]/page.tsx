@@ -268,7 +268,7 @@ function LogsTab({
             </Button>
           </div>
           {execOutput && (
-            <pre className="log-viewer text-xs">{execOutput}</pre>
+            <pre data-testid="exec-output" className="log-viewer text-xs">{execOutput}</pre>
           )}
         </div>
       )}

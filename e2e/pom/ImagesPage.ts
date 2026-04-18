@@ -19,9 +19,7 @@ export class ImagesPage {
   }
 
   getImageCards(): Locator {
-    return this.page
-      .locator(".card")
-      .filter({ has: this.page.locator("span.text-blue-300") });
+    return this.page.getByTestId("image-card");
   }
 
   getImageCard(tagOrName: string): Locator {
@@ -29,7 +27,7 @@ export class ImagesPage {
   }
 
   getDeleteButton(tagOrName: string): Locator {
-    return this.getImageCard(tagOrName).locator("button.btn-icon");
+    return this.getImageCard(tagOrName).getByRole("button", { name: "Delete image" });
   }
 
   async openPullModal(): Promise<void> {

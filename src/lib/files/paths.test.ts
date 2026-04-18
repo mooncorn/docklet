@@ -16,51 +16,56 @@ describe("files/paths", () => {
     delete process.env.DOCKLET_DATA_DIR;
   });
 
-  it("getFilesRoot returns data-dir/volumes and creates it", async () => {
-    const { getFilesRoot } = await import("./paths");
-    const root = getFilesRoot();
-    expect(root).toBe(join(tmpDir, "volumes"));
+  describe("getFilesRoot", () => {
+    it("returns data-dir/volumes", async () => {
+      const { getFilesRoot } = await import("./paths");
+      expect(getFilesRoot()).toBe(join(tmpDir, "volumes"));
+    });
   });
 
-  it("resolveSafePath accepts empty, dot, and nested paths", async () => {
-    const { resolveSafePath, getFilesRoot } = await import("./paths");
-    const root = getFilesRoot();
-    expect(resolveSafePath("")).toBe(root);
-    expect(resolveSafePath(".")).toBe(root);
-    expect(resolveSafePath("sub/dir")).toBe(join(root, "sub", "dir"));
-    expect(resolveSafePath("sub/dir/file.txt")).toBe(
-      join(root, "sub", "dir", "file.txt")
-    );
+  describe("resolveSafePath", () => {
+    it("when path is empty or dot — resolves to root", async () => {
+      const { resolveSafePath, getFilesRoot } = await import("./paths");
+      const root = getFilesRoot();
+      expect(resolveSafePath("")).toBe(root);
+      expect(resolveSafePath(".")).toBe(root);
+    });
+
+    it("when path is nested — resolves relative to root", async () => {
+      const { resolveSafePath, getFilesRoot } = await import("./paths");
+      const root = getFilesRoot();
+      expect(resolveSafePath("sub/dir")).toBe(join(root, "sub", "dir"));
+      expect(resolveSafePath("sub/dir/file.txt")).toBe(join(root, "sub", "dir", "file.txt"));
+    });
+
+    it("when path has leading slashes — strips them before resolving", async () => {
+      const { resolveSafePath, getFilesRoot } = await import("./paths");
+      const root = getFilesRoot();
+      expect(resolveSafePath("/sub")).toBe(join(root, "sub"));
+      expect(resolveSafePath("//sub")).toBe(join(root, "sub"));
+    });
+
+    it("when path contains traversal segments — throws Invalid path", async () => {
+      const { resolveSafePath } = await import("./paths");
+      expect(() => resolveSafePath("../etc/passwd")).toThrow(/Invalid path/);
+      expect(() => resolveSafePath("../../etc/passwd")).toThrow(/Invalid path/);
+      expect(() => resolveSafePath("sub/../../etc")).toThrow(/Invalid path/);
+      expect(() => resolveSafePath("foo/../../../bar")).toThrow(/Invalid path/);
+    });
+
+    it("when path traverses far above root — throws", async () => {
+      const { resolveSafePath } = await import("./paths");
+      expect(() => resolveSafePath("../../../etc/passwd")).toThrow();
+    });
   });
 
-  it("resolveSafePath strips leading slashes", async () => {
-    const { resolveSafePath, getFilesRoot } = await import("./paths");
-    const root = getFilesRoot();
-    expect(resolveSafePath("/sub")).toBe(join(root, "sub"));
-    expect(resolveSafePath("//sub")).toBe(join(root, "sub"));
-  });
-
-  it("resolveSafePath rejects path traversal", async () => {
-    const { resolveSafePath } = await import("./paths");
-    expect(() => resolveSafePath("../etc/passwd")).toThrow(/Invalid path/);
-    expect(() => resolveSafePath("../../etc/passwd")).toThrow(/Invalid path/);
-    expect(() => resolveSafePath("sub/../../etc")).toThrow(/Invalid path/);
-    expect(() => resolveSafePath("foo/../../../bar")).toThrow(/Invalid path/);
-  });
-
-  it("resolveSafePath rejects absolute paths escaping root", async () => {
-    const { resolveSafePath } = await import("./paths");
-    // After stripping leading slash, /etc/passwd becomes etc/passwd (inside root), which is fine.
-    // But path.resolve("root", "/etc/passwd") would escape, so we strip the leading / first.
-    // So this test confirms the strip + contain logic holds.
-    expect(() => resolveSafePath("../../../etc/passwd")).toThrow();
-  });
-
-  it("toRelative returns forward-slash path inside root", async () => {
-    const { toRelative, getFilesRoot } = await import("./paths");
-    const root = getFilesRoot();
-    expect(toRelative(root)).toBe("");
-    expect(toRelative(root + sep + "foo")).toBe("foo");
-    expect(toRelative(root + sep + "a" + sep + "b.txt")).toBe("a/b.txt");
+  describe("toRelative", () => {
+    it("returns forward-slash relative path from root", async () => {
+      const { toRelative, getFilesRoot } = await import("./paths");
+      const root = getFilesRoot();
+      expect(toRelative(root)).toBe("");
+      expect(toRelative(root + sep + "foo")).toBe("foo");
+      expect(toRelative(root + sep + "a" + sep + "b.txt")).toBe("a/b.txt");
+    });
   });
 });

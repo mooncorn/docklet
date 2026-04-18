@@ -2,6 +2,8 @@ import { test, expect, ADMIN_CREDS } from "./fixtures/auth.fixtures";
 import { LoginPage } from "./pom/LoginPage";
 import { SetupPage } from "./pom/SetupPage";
 
+// Setup Wizard tests must run serially: the first test creates the admin account
+// and subsequent tests depend on that state (e.g. /setup redirects to /login).
 test.describe.configure({ mode: "serial" });
 
 test.describe("Setup Wizard", () => {
@@ -106,10 +108,7 @@ test.describe("Logout", () => {
     adminPage,
   }) => {
     await adminPage.goto("/containers");
-    await adminPage
-      .locator("header button")
-      .filter({ hasText: ADMIN_CREDS.username })
-      .click();
+    await adminPage.getByRole("button", { name: ADMIN_CREDS.username }).click();
     await adminPage.getByRole("button", { name: "Sign out" }).click();
     await expect(adminPage).toHaveURL(/\/login/);
   });

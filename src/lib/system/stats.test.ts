@@ -57,29 +57,23 @@ describe("getSystemStats", () => {
     mockDocker.listImages.mockResolvedValue([{ Id: "a" }, { Id: "b" }]);
 
     const stats = await getSystemStats();
-    expect(stats.cpu.load).toBe(42.6);
-    expect(stats.cpu.cores).toBe(8);
-    expect(stats.mem.used).toBe(4_000_000_000);
-    expect(stats.disk.used).toBe(500);
-    expect(stats.disk.total).toBe(1000);
-    expect(stats.disk.mountpoint).toBe("/");
-    expect(stats.os.distro).toBe("Ubuntu");
-    expect(stats.docker).toEqual({
-      running: 2,
-      stopped: 1,
-      total: 3,
-      images: 2,
+    expect(stats).toMatchObject({
+      cpu: { load: 42.6, cores: 8 },
+      mem: { used: 4_000_000_000 },
+      disk: { used: 500, total: 1000, mountpoint: "/" },
+      os: { distro: "Ubuntu" },
+      docker: { running: 2, stopped: 1, total: 3, images: 2 },
     });
   });
 
-  it("handles docker failures gracefully", async () => {
+  it("when docker is unavailable — docker counts default to zero", async () => {
     mockDocker.listContainers.mockRejectedValue(new Error("docker down"));
     mockDocker.listImages.mockRejectedValue(new Error("docker down"));
     const stats = await getSystemStats();
     expect(stats.docker).toEqual({ running: 0, stopped: 0, total: 0, images: 0 });
   });
 
-  it("picks the largest mount when multiple are reported", async () => {
+  it("when multiple mounts are reported — picks the largest by size", async () => {
     vi.mocked(si.fsSize).mockResolvedValue([
       { mount: "/a", size: 10, used: 5, fs: "", type: "", available: 5, use: 50 },
       { mount: "/b", size: 9999, used: 100, fs: "", type: "", available: 9899, use: 1 },
