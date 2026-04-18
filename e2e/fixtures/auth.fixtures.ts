@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/rules-of-hooks */
 import { test as base, type Page, type APIRequestContext } from "@playwright/test";
 
 export const ADMIN_CREDS = {
