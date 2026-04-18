@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 export default function SettingsPage() {
+  const router = useRouter();
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -28,6 +30,10 @@ export default function SettingsPage() {
   async function fetchSettings() {
     try {
       const res = await fetch("/api/settings");
+      if (res.status === 403) {
+        router.replace("/containers");
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setSettings(data);
@@ -124,7 +130,7 @@ export default function SettingsPage() {
     try {
       await fetch("/api/system/restart", { method: "POST" });
     } catch {
-      // Expected — the process exits before the response fully arrives
+      // Expected: the process exits before the response fully arrives
     }
 
     // Poll /api/health until the server comes back up
@@ -144,7 +150,7 @@ export default function SettingsPage() {
           return;
         }
       } catch {
-        // Server not yet back — keep polling
+        // Server not yet back; keep polling
       }
       setTimeout(poll, 2000);
     };
@@ -172,10 +178,11 @@ export default function SettingsPage() {
           <h2 className="text-lg font-semibold mb-4">General</h2>
           <form onSubmit={handleSave} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label htmlFor="app-name" className="block text-sm font-medium text-gray-300 mb-1">
                 Application Name
               </label>
               <input
+                id="app-name"
                 type="text"
                 value={settings.app_name || ""}
                 onChange={(e) =>
@@ -186,7 +193,7 @@ export default function SettingsPage() {
             </div>
 
             {message && (
-              <p className="text-sm text-green-400">{message}</p>
+              <p data-testid="success-message" className="text-sm text-green-400">{message}</p>
             )}
 
             <button type="submit" className="btn-primary" disabled={saving}>
@@ -248,7 +255,7 @@ export default function SettingsPage() {
             </button>
           </form>
 
-          {/* Revert to self-signed — only shown when a custom cert is active */}
+          {/* Revert to self-signed (only shown when a custom cert is active) */}
           {isCustomCert && (
             <div className="mt-6 pt-6 border-t border-gray-700">
               <h3 className="text-sm font-semibold text-gray-200 mb-1">Revert to Self-Signed Certificate</h3>

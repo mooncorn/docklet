@@ -138,16 +138,18 @@ export default function ContainerDetailPage() {
             )}
             <Button
               variant="icon"
+              aria-label="Restart container"
               icon={<HiOutlineArrowPath className="w-5 h-5" />}
               onClick={() => handleAction("restart")}
               loading={actionLoading === "restart"}
               disabled={!isRunning}
             />
             <Link href={`/containers/${id}/edit`}>
-              <Button variant="icon" icon={<HiOutlinePencilSquare className="w-5 h-5" />} />
+              <Button variant="icon" aria-label="Edit container" icon={<HiOutlinePencilSquare className="w-5 h-5" />} />
             </Link>
             <Button
               variant="icon"
+              aria-label="Delete container"
               icon={<HiOutlineTrash className="w-5 h-5 text-red-400" />}
               onClick={() => setDeleteOpen(true)}
             />

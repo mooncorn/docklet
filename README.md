@@ -1,6 +1,6 @@
 # Docklet
 
-A self-hosted Docker management UI — one `docker run` command, then manage containers, images, logs, and files from any browser. No accounts, no cloud.
+A self-hosted Docker management UI. One `docker run` command, then manage containers, images, logs, and files from any browser. No accounts, no cloud.
 
 ## Table of Contents
 
@@ -14,6 +14,7 @@ A self-hosted Docker management UI — one `docker run` command, then manage con
 - [Upgrading](#upgrading)
 - [Testing](#testing)
 - [Common Issues](docs/COMMON_ISSUES.md)
+- [Testing Architecture](docs/TESTING.md)
 - [Development](#development)
 
 ## Features
@@ -31,7 +32,7 @@ A self-hosted Docker management UI — one `docker run` command, then manage con
 - Remove unused images
 
 ### Security & Auth
-- Setup wizard on first run — no config files needed
+- Setup wizard on first run with no config files needed
 - Role-based access control: `admin`, `mod`, `user`
 - Passwords hashed with bcrypt, sessions via signed JWTs (httpOnly cookies)
 - HTTPS by default with auto-generated self-signed cert; upload your own for a real domain
@@ -39,7 +40,7 @@ A self-hosted Docker management UI — one `docker run` command, then manage con
 ### Deployment
 - Single `docker run` command, zero config files
 - All settings stored in SQLite, managed entirely through the web UI
-- Persistent data (DB, certs, volumes) in one directory — easy to back up
+- Persistent data (DB, certs, volumes) in one directory for easy backups
 
 ## Requirements
 
@@ -48,7 +49,7 @@ A self-hosted Docker management UI — one `docker run` command, then manage con
 - **Linux host** (Docker Desktop on Mac/Windows may work but is not officially supported)
 - A persistent directory for data storage
 
-No other software required — the container bundles Node.js 22, nginx, and OpenSSL.
+No other software required. The container bundles Node.js 22, nginx, and OpenSSL.
 
 ## Quick Start
 
@@ -65,7 +66,7 @@ Then open `https://localhost` to complete the setup wizard. Accept the browser w
 
 ## First-Run Setup
 
-1. Navigate to `https://localhost` — you'll be redirected to the setup wizard
+1. Navigate to `https://localhost` and you'll be redirected to the setup wizard
 2. Create your admin account (username + password)
 3. Click "Go to Dashboard" to start managing containers
 
@@ -77,7 +78,7 @@ Docklet runs on HTTPS by default. A self-signed certificate is generated automat
 
 1. Go to **Settings > TLS Certificates**
 2. Upload your certificate and private key
-3. Restart the container — nginx picks up the new cert on next boot
+3. Restart the container. nginx picks up the new cert on next boot.
 
 ## Configuration
 
@@ -125,7 +126,7 @@ services:
 ```bash
 docker pull ghcr.io/dandylake/docklet:latest
 docker stop docklet && docker rm docklet
-# Re-run the docker run command — your data persists in the volume
+# Re-run the docker run command. Your data persists in the volume.
 ```
 
 ## Testing
@@ -147,6 +148,8 @@ npm run test:e2e
 ```
 
 Run `npm run typecheck` to catch TypeScript errors before running tests.
+
+For architecture details covering isolation strategy, auth fixtures, POM conventions, and the reasoning behind each decision, see [docs/TESTING.md](docs/TESTING.md).
 
 ## Development
 

@@ -156,6 +156,7 @@ export default function UserList() {
           </Button>
           <Button
             variant="icon"
+            aria-label="Refresh"
             onClick={load}
             disabled={loading}
             icon={
@@ -168,7 +169,7 @@ export default function UserList() {
       </div>
 
       {error && (
-        <div className="mb-3 text-sm text-red-400 bg-red-900/20 border border-red-900 rounded-lg px-3 py-2">
+        <div data-testid="error-message" className="mb-3 text-sm text-red-400 bg-red-900/20 border border-red-900 rounded-lg px-3 py-2">
           {error}
         </div>
       )}
@@ -233,7 +234,7 @@ export default function UserList() {
       )}
 
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="New User">
-        {createError && <div className="mb-3 text-sm text-red-400">{createError}</div>}
+        {createError && <div data-testid="error-message" className="mb-3 text-sm text-red-400">{createError}</div>}
         <div className="space-y-3">
           <FormInput
             label="Username"

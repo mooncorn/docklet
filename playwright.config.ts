@@ -17,15 +17,27 @@ export default defineConfig({
       testMatch: "e2e/global-setup.ts",
     },
     {
+      // Auth tests run first: setup wizard needs an empty DB, and creates
+      // the admin account that all other specs depend on.
+      name: "auth",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: "e2e/auth.spec.ts",
+      dependencies: ["setup"],
+    },
+    {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      dependencies: ["setup"],
+      testMatch: ["e2e/containers.spec.ts", "e2e/images.spec.ts", "e2e/users.spec.ts", "e2e/settings.spec.ts", "e2e/rbac.spec.ts"],
+      dependencies: ["auth"],
     },
   ],
   webServer: {
     command: "npm run dev",
     url: "http://localhost:3000",
-    reuseExistingServer: !process.env.CI,
-    env: { ...process.env, DOCKLET_DATA_DIR: "./tmp/docklet-e2e-data" },
+    // Do NOT reuse an existing dev server. It may point to a different data
+    // directory and will cause tests to fail. Stop any running dev server
+    // before running e2e tests.
+    reuseExistingServer: false,
+    env: { ...process.env, DOCKLET_DATA_DIR: "./tmp/docklet-e2e-data", E2E_DISABLE_RATE_LIMIT: "1" },
   },
 });

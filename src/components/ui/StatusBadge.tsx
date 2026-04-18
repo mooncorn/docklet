@@ -17,5 +17,5 @@ export default function StatusBadge({ status }: StatusBadgeProps) {
     className: "badge-gray",
     label: status,
   };
-  return <span className={`badge ${config.className}`}>{config.label}</span>;
+  return <span data-testid="status-badge" className={`badge ${config.className}`}>{config.label}</span>;
 }

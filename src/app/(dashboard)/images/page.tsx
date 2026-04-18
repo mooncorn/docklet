@@ -98,7 +98,9 @@ export default function ImagesPage() {
             const data = JSON.parse(line.slice(6));
             if (data.complete) {
               setPulling(false);
+              setPullOpen(false);
               setPullImage("");
+              setPullProgress([]);
               fetchImages();
               return;
             }
@@ -161,6 +163,7 @@ export default function ImagesPage() {
             )}
             <Button
               variant="icon"
+              aria-label="Refresh"
               onClick={handleRefresh}
               disabled={loading}
               icon={

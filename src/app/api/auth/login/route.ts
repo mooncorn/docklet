@@ -14,7 +14,9 @@ const loginSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    checkRateLimit(`login:${getClientIp(request)}`, 5, 15 * 60 * 1000);
+    if (!process.env.E2E_DISABLE_RATE_LIMIT) {
+      checkRateLimit(`login:${getClientIp(request)}`, 5, 15 * 60 * 1000);
+    }
     const body = await request.json();
     const result = loginSchema.safeParse(body);
 

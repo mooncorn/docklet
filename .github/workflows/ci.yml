@@ -55,6 +55,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
+      - run: docker pull alpine:latest
+      - run: docker pull nginx:alpine
       - run: npm run test:e2e
         env:
           DOCKLET_DATA_DIR: /tmp/docklet-e2e-data

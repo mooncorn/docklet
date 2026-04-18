@@ -62,18 +62,29 @@ export async function createUser(input: {
   }
   const passwordHash = await hashPassword(input.password);
   const now = new Date();
-  const row = db
-    .insert(users)
-    .values({
-      username: input.username,
-      passwordHash,
-      role: input.role,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .returning()
-    .get();
-  return toDTO(row);
+  try {
+    const row = db
+      .insert(users)
+      .values({
+        username: input.username,
+        passwordHash,
+        role: input.role,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning()
+      .get();
+    return toDTO(row);
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      "code" in err &&
+      (err as NodeJS.ErrnoException).code === "SQLITE_CONSTRAINT_UNIQUE"
+    ) {
+      throw new AppError(409, "Username already exists");
+    }
+    throw err;
+  }
 }
 
 export async function updateUser(

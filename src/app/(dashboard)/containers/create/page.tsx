@@ -193,7 +193,7 @@ export default function CreateContainerPage() {
       />
 
       {errors.submit && (
-        <div className="bg-red-900/50 border border-red-700 rounded-lg p-4 text-red-300">
+        <div data-testid="error-message" className="bg-red-900/50 border border-red-700 rounded-lg p-4 text-red-300">
           {errors.submit}
         </div>
       )}

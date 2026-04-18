@@ -54,6 +54,7 @@ export default function ContainersPage() {
             </Link>
             <Button
               variant="icon"
+              aria-label="Refresh"
               onClick={handleRefresh}
               disabled={loading}
               icon={

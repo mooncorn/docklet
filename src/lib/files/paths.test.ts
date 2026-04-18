@@ -50,8 +50,8 @@ describe("files/paths", () => {
 
   it("resolveSafePath rejects absolute paths escaping root", async () => {
     const { resolveSafePath } = await import("./paths");
-    // After stripping leading slash, /etc/passwd becomes etc/passwd (inside root) — fine.
-    // But path.resolve("root", "/etc/passwd") would escape — we strip leading / first.
+    // After stripping leading slash, /etc/passwd becomes etc/passwd (inside root), which is fine.
+    // But path.resolve("root", "/etc/passwd") would escape, so we strip the leading / first.
     // So this test confirms the strip + contain logic holds.
     expect(() => resolveSafePath("../../../etc/passwd")).toThrow();
   });

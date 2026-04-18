@@ -12,7 +12,7 @@ import type {
 } from "./types";
 import type Dockerode from "dockerode";
 
-/** Internal type used by buildCreateOptions — host path already resolved */
+/** Internal type used by buildCreateOptions (host path already resolved) */
 interface ResolvedVolume {
   hostPath: string;
   containerPath: string;

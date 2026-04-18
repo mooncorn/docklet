@@ -100,7 +100,7 @@ export default function SetupForm() {
 
           <form onSubmit={handleCreateAdmin} className="space-y-4">
             {error && (
-              <div className="bg-red-900/50 border border-red-700 text-red-300 px-4 py-2 rounded-lg text-sm">
+              <div data-testid="error-message" className="bg-red-900/50 border border-red-700 text-red-300 px-4 py-2 rounded-lg text-sm">
                 {error}
               </div>
             )}
