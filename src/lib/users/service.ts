@@ -1,5 +1,5 @@
 import { eq, and, ne, sql } from "drizzle-orm";
-import { getDb } from "@/lib/db";
+import { getDb, type Db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { hashPassword } from "@/lib/auth/password";
 import { AppError } from "@/lib/errors";
@@ -32,26 +32,27 @@ function toDTO(row: {
   };
 }
 
-export async function listUsers(): Promise<UserDTO[]> {
-  const db = getDb();
+export async function listUsers(db: Db = getDb()): Promise<UserDTO[]> {
   const rows = db.select().from(users).all();
   return rows
     .map((r) => toDTO(r))
     .sort((a, b) => a.createdAt - b.createdAt);
 }
 
-export async function createUser(input: {
-  username: string;
-  password: string;
-  role: Role;
-}): Promise<UserDTO> {
+export async function createUser(
+  input: {
+    username: string;
+    password: string;
+    role: Role;
+  },
+  db: Db = getDb()
+): Promise<UserDTO> {
   if (!USERNAME_RE.test(input.username)) {
     throw new AppError(400, "Invalid username");
   }
   if (input.password.length < 8) {
     throw new AppError(400, "Password must be at least 8 characters");
   }
-  const db = getDb();
   const existing = db
     .select({ id: users.id })
     .from(users)
@@ -89,7 +90,8 @@ export async function createUser(input: {
 
 export async function updateUser(
   id: number,
-  patch: { role?: Role; password?: string }
+  patch: { role?: Role; password?: string },
+  db: Db = getDb()
 ): Promise<UserDTO> {
   if (patch.role === undefined && patch.password === undefined) {
     throw new AppError(400, "No fields to update");
@@ -97,7 +99,6 @@ export async function updateUser(
   if (patch.password !== undefined && patch.password.length < 8) {
     throw new AppError(400, "Password must be at least 8 characters");
   }
-  const db = getDb();
   const target = db.select().from(users).where(eq(users.id, id)).get();
   if (!target) {
     throw new AppError(404, "User not found");
@@ -129,11 +130,14 @@ export async function updateUser(
   return toDTO(row);
 }
 
-export async function deleteUser(id: number, actingUserId: number): Promise<void> {
+export async function deleteUser(
+  id: number,
+  actingUserId: number,
+  db: Db = getDb()
+): Promise<void> {
   if (id === actingUserId) {
     throw new AppError(400, "Cannot delete your own account");
   }
-  const db = getDb();
   const target = db.select().from(users).where(eq(users.id, id)).get();
   if (!target) {
     throw new AppError(404, "User not found");
