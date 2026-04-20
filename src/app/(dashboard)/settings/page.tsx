@@ -218,13 +218,6 @@ export default function SettingsPage() {
             </div>
           ) : null}
 
-          {/* Upload custom cert */}
-          <h3 className="text-sm font-semibold text-gray-200 mb-1">Upload Custom Certificate</h3>
-          <p className="text-sm text-gray-400 mb-4">
-            Upload a CA-signed certificate and private key to use with a custom domain.
-            A restart is required after uploading.
-          </p>
-
           <form onSubmit={handleCertUpload} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">
