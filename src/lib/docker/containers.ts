@@ -180,10 +180,32 @@ export async function createContainer(
 ): Promise<{ id: string }> {
   const docker = getDocker();
 
+  // When Docklet runs inside Docker, DOCKLET_DATA_DIR is the in-container path
+  // (e.g. /docklet-data), but Docker needs the real host-side path for child
+  // container bind mounts. Detect this by inspecting the Docklet container itself.
+  const localDataDir = getDataDir();
+  let hostDataDir = localDataDir;
+  const self = hostname();
+  if (/^[0-9a-f]{12}$/.test(self)) {
+    try {
+      const selfInfo = await docker.getContainer(self).inspect();
+      const dataDirMount = (selfInfo.Mounts ?? []).find(
+        (m: { Type: string; Destination: string; Source: string }) =>
+          m.Type === "bind" && m.Destination === localDataDir
+      );
+      if (dataDirMount?.Source) {
+        hostDataDir = dataDirMount.Source;
+      }
+    } catch {
+      // Not in Docker or inspect failed; fall back to local path
+    }
+  }
+
   // Resolve each container path to a managed host path and create the directory
   const resolvedVolumes: ResolvedVolume[] = (input.volumes ?? []).map((v) => {
-    const hostPath = resolveVolumePath(input.name, v.containerPath);
-    mkdirSync(hostPath, { recursive: true });
+    const localPath = resolveVolumePath(input.name, v.containerPath);
+    mkdirSync(localPath, { recursive: true });
+    const hostPath = hostDataDir + localPath.slice(localDataDir.length);
     return { hostPath, containerPath: v.containerPath, mode: v.mode ?? "rw" };
   });
 
