@@ -1,70 +1,62 @@
 # Testing
 
-Docklet has two test layers: **Vitest unit tests** that validate individual service modules in isolation, and **Playwright end-to-end tests** that drive a real browser against a running dev server. Together they cover the full stack, from pure business logic through Docker API integration to authenticated browser flows.
+Docklet has three test layers:
+
+- **Unit tests** (Vitest) — individual service modules in isolation. External dependencies mocked at the module boundary.
+- **Integration tests** (Vitest, `*.integration.test.ts`) — route handlers invoked directly against an in-memory SQLite DB and a stubbed Docker daemon. This is the workhorse: larger than unit, smaller than E2E, and covers auth, RBAC, CRUD, validation, and Docker state transitions without a browser.
+- **End-to-end tests** (Playwright) — real browser, real dev server, real file-backed SQLite. Kept intentionally small: only genuine multi-page user journeys that a browser uniquely validates.
+
+Suite sizes at a glance:
+
+| Layer | Files | Tests | Wall-clock |
+|------|------:|------:|-----------:|
+| Unit | 11 | 92 | ~0.5s |
+| Integration | 15 | 60 | ~6s |
+| E2E | 6 | 17 | minutes (browser + dev server) |
+
+---
+
+## DB dependency injection
+
+Integration tests invoke route handlers in-process, which means every DB-backed code path must be able to run against an in-memory SQLite instance instead of the file-backed production DB. `src/lib/db/index.ts` exposes:
+
+```typescript
+export function createDbInstance(dbPath: string): Db   // ":memory:" or file path
+export function getDb(): Db                            // production accessor (file-backed)
+export function setDb(db: Db): void                    // test-only override
+export function resetDb(): void                        // test-only reset
+```
+
+`createDbInstance()` runs the inline SQL migrations against whatever path you give it, so a test can stand up a fully-migrated in-memory DB in a single call. `setDb`/`resetDb` swap the singleton for tests and restore it afterwards; production code never calls them.
+
+Services (`lib/users/service.ts`, `lib/config/index.ts`, `lib/auth/session.ts`) accept `db: Db = getDb()` as an optional last parameter. Production call sites don't change — routes still call `listUsers()` with no args — but tests can construct an isolated DB and pass it explicitly if they want to bypass the singleton entirely.
+
+Routes use the singleton path: `useTestDb()` calls `setDb(testDb)` in `beforeEach`, so when a handler runs `getDb()` inside the test, it sees the in-memory instance.
 
 ---
 
 ## Unit Tests
 
 ```
-npm test           # single run (CI)
-npm run test:watch # watch mode (development)
+npm test            # run all Vitest suites (unit + integration)
+npm run test:watch  # watch mode
 ```
 
-### Configuration
+Tests live next to the code they test (`foo.ts` → `foo.test.ts`). Covered modules:
 
-`vitest.config.ts` sets three things that matter:
-
-- **`environment: "node"`**: no jsdom, no browser globals. Every module under `src/lib/` is pure Node.js; testing it in a browser environment would add noise.
-- **`globals: true`**: `describe`, `it`, `expect`, `vi` are available without imports, matching the convention used throughout the project.
-- **`@/` alias**: mirrors `tsconfig.json` so path aliases resolve identically in tests and in production.
-
-### What's covered
-
-Tests live next to the code they test (`foo.ts` → `foo.test.ts`). The 79 unit tests cover 11 modules:
-
-| Module | Tests | What's validated |
-|--------|------:|-----------------|
-| `lib/docker/containers` | 20 | `listContainers`, `inspectContainer`, `createContainer`, volume path resolution, port binding, restart policy mapping |
-| `lib/files/service` | 14 | directory listing, read/write, upload streaming, MIME detection, size limits |
-| `lib/users/service` | 11 | CRUD, role changes, password reset, self-delete prevention, last-admin guard |
-| `lib/docker/images` | 9 | list, remove, pull progress parsing |
-| `lib/rate-limit` | 7 | sliding window enforcement, per-key isolation, window reset, client IP extraction |
-| `lib/files/paths` | 6 | safe path resolution, directory containment, path traversal rejection |
-| `lib/system/stats` | 3 | CPU/memory/disk aggregation, Docker stats rollup, error resilience |
-| `lib/config` | 3 | `getSetting`/`setSetting`, setup detection, JWT secret auto-generation |
-| `lib/certs/generate` | 3 | self-signed cert generation, idempotency |
-| `lib/auth/password` | 2 | bcrypt hash and verify |
-| `lib/db` | 1 | directory initialization, migration execution |
-
-**Intentional gaps:** API route handlers, session/JWT logic, auth middleware, and React hooks are not unit tested. These all require either a running HTTP server or a browser context, both of which are covered more meaningfully by the e2e suite.
-
-### DB test pattern
-
-Several modules read `process.env.DOCKLET_DATA_DIR` at load time to locate the SQLite database. Testing them requires a real (but temporary) database:
-
-```typescript
-beforeAll(() => {
-  tmpDir = mkdtempSync(join(tmpdir(), "docklet-users-test-"));
-  process.env.DOCKLET_DATA_DIR = tmpDir;          // set env BEFORE importing
-  const db = await import("@/lib/db");            // dynamic import picks up env
-  db.initDataDirs();
-  db.runMigrations();
-});
-
-afterAll(() => {
-  rmSync(tmpDir, { recursive: true, force: true });
-  delete process.env.DOCKLET_DATA_DIR;
-});
-
-beforeEach(async () => {
-  const { getDb } = await import("@/lib/db");
-  const { users } = await import("@/lib/db/schema");
-  getDb().delete(users).run();                    // clean slate between tests
-});
-```
-
-The dynamic `import()` is load-time critical: a static top-level import of `@/lib/db` would run before `beforeAll` sets the env var, causing the module to initialize against the wrong path. Dynamic imports defer resolution until the test body runs, where the env is already set.
+| Module | What's validated |
+|--------|-----------------|
+| `lib/docker/containers` | `listContainers`, `inspectContainer`, `createContainer`, volume path resolution, port binding, restart policy mapping |
+| `lib/files/service` | directory listing, read/write, upload streaming, MIME detection, size limits |
+| `lib/users/service` | CRUD, role changes, password reset, self-delete prevention, last-admin guard |
+| `lib/docker/images` | list, remove, pull progress parsing |
+| `lib/rate-limit` | sliding window enforcement, per-key isolation, window reset, client IP extraction |
+| `lib/files/paths` | safe path resolution, directory containment, path traversal rejection |
+| `lib/system/stats` | CPU/memory/disk aggregation, Docker stats rollup, error resilience |
+| `lib/config` | `getSetting`/`setSetting`, setup detection, JWT secret auto-generation |
+| `lib/certs/generate` | self-signed cert generation, idempotency |
+| `lib/auth/password` | bcrypt hash and verify |
+| `lib/db` | directory initialization, migration execution |
 
 ### Mocking pattern
 
@@ -78,16 +70,14 @@ const mockDocker = {
 };
 
 vi.mock("./client", () => ({ getDocker: () => mockDocker }));
-vi.mock("@/lib/db", () => ({ getDataDir: () => "/docklet-data" }));
 vi.mock("fs", () => ({ mkdirSync: vi.fn() }));
 
-// Imports come AFTER vi.mock() calls (Vitest hoists mocks before module resolution)
 import { listContainers, createContainer } from "./containers";
 
 beforeEach(() => vi.clearAllMocks());
 ```
 
-`vi.clearAllMocks()` in `beforeEach` resets call counts and return values so test order never matters.
+Imports come after `vi.mock()` calls — Vitest hoists them before module resolution. `vi.clearAllMocks()` in `beforeEach` resets call counts and return values so test order never matters.
 
 ### Fake timers for time-dependent logic
 
@@ -115,19 +105,99 @@ Service functions throw `AppError` (a typed `Error` subclass with a `status` fie
 
 ```typescript
 await expect(createUser({ username: "dup", ... })).rejects.toMatchObject({ status: 409 });
-await expect(createUser({ username: "x", password: "short", ... })).rejects.toMatchObject({ status: 400 });
 ```
+
+---
+
+## Integration Tests
+
+```
+npm run test:integration   # integration only
+npm test                   # unit + integration together
+```
+
+Integration tests live alongside the route they exercise (`src/app/api/users/route.ts` → `route.integration.test.ts`). Each file owns one route family; collectively they cover every public API surface the app exposes.
+
+### Harness
+
+Everything test-specific lives under `src/test/`:
+
+| File | What it provides |
+|------|------------------|
+| `setup.ts` | Vitest `setupFile` that mocks `next/headers` cookies against a global `Map` cookie jar |
+| `db.ts` | `createTestDb()` stands up an in-memory Drizzle instance with migrations applied; `useTestDb()` returns a hook that sets/resets the DB singleton per test |
+| `auth.ts` | `loginAs(db, {role})` creates a user + session and writes the `docklet_session` cookie; `createTestUser(db, opts)` creates without logging in |
+| `request.ts` | `buildRequest()` constructs a `NextRequest`; `callHandler(handler, req, ctx?)` invokes it and returns `{status, headers, body}` |
+| `docker.ts` | `FakeDocker` — in-memory dockerode replacement with `listContainers`, `createContainer`, `getContainer().{start,stop,restart,remove,inspect,logs,exec}`, `listImages`, `pull`, etc. Scope is deliberately narrow: only methods the routes actually call |
+| `faker.ts` | Shared realistic-data helpers (`username()`, `password()`) used by both unit and integration tests |
+
+### Writing an integration test
+
+```typescript
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("@/lib/docker/client", () => ({
+  getDocker: () => globalThis.__testDocker!,
+}));
+
+import { POST } from "./route";
+import { useTestDb } from "@/test/db";
+import { loginAs } from "@/test/auth";
+import { buildRequest, callHandler } from "@/test/request";
+import { installFakeDocker, getFakeDocker } from "@/test/docker";
+
+describe("POST /api/images/pull", () => {
+  const ctx = useTestDb();
+
+  beforeEach(() => { installFakeDocker(); });
+
+  it("when called as non-admin, returns 403 and does not pull", async () => {
+    await loginAs(ctx.get(), { role: "user" });
+
+    const res = await callHandler(
+      POST,
+      buildRequest({ method: "POST", body: { image: "nginx:latest" } })
+    );
+
+    expect(res.status).toBe(403);
+    expect(await getFakeDocker().listImages()).toHaveLength(0);
+  });
+});
+```
+
+**Key conventions:**
+
+- Each `describe` gets its own in-memory DB via `useTestDb()` — no shared state between files or between tests.
+- `loginAs()` is the entry point for the authenticated path; calling it inside the `it` block means each test sets up its own session against its own DB.
+- `vi.mock("@/lib/docker/client")` goes at the top of the file and routes all calls to `globalThis.__testDocker`. `installFakeDocker()` in `beforeEach` creates a fresh fake.
+- Assertions hit the five observable outcomes: response status, response body, DB state (read back through the service), Docker fake state, and — for routes that care — cookie changes.
+
+### Why routes, not services
+
+Service-layer unit tests already cover business logic in isolation. Integration tests exist to validate the **full request path**: authentication middleware, schema validation, role checks, rate limiting, DB side effects, and response shape — everything between the HTTP boundary and the DB. That's the layer where bugs that slip past unit tests actually land.
 
 ---
 
 ## End-to-End Tests
 
 ```
-npm run test:e2e                          # standard run
-DOCKER_E2E_NETWORK=1 npm run test:e2e    # include Docker Hub tests
+npm run test:e2e
 ```
 
 **Prerequisite:** `npx playwright install chromium` on first use.
+
+The E2E suite is intentionally small (~17 tests). Everything that used to be covered here — RBAC status codes, form validation, CRUD persistence, auth error messages — is now in the integration suite. What remains is what a browser uniquely validates:
+
+| Spec | Tests | What it validates |
+|------|------:|-------------------|
+| `auth.spec.ts` | 6 | Setup wizard → dashboard, setup → login redirect once admin exists, login → containers, logout via header menu, unauth → login, auth → containers |
+| `containers.spec.ts` | 3 | Create via form → detail → list appearance, lifecycle start/stop/restart flow, template save on one form and load on another |
+| `rbac.spec.ts` | 4 | Admin sees Users/Settings in sidebar, user does not, non-admin → /users redirect, non-admin → /settings redirect |
+| `settings.spec.ts` | 1 | App name update persists on reload and appears on the login page (cross-page state) |
+| `users.spec.ts` | 1 | Admin sees user list with `(you)` marker on own row |
+| `images.spec.ts` | 1 | Images page loads for admin with Pull button (smoke) |
+
+Every remaining test either spans multiple pages, depends on real browser rendering, or verifies cross-page state that the integration suite can't see.
 
 ### Project dependency chain
 
@@ -137,17 +207,15 @@ Playwright runs three projects in sequence:
 setup  →  auth  →  chromium
 ```
 
-**`setup`** runs `global-setup.ts` once: resets the database and cleans up test containers. This runs before any browser is launched.
+- **`setup`** runs `global-setup.ts` once: resets the DB and cleans up any orphan `e2e-*` containers.
+- **`auth`** runs `auth.spec.ts` in isolation, because the setup wizard only works against an empty database. By the time `auth` finishes, the `e2e-admin` account exists.
+- **`chromium`** runs the remaining five specs.
 
-**`auth`** runs `auth.spec.ts` in isolation. This is a separate project (not just a separate file), because the setup wizard only works against an empty database. By the time `auth` finishes, the `e2e-admin` account exists and every other spec can rely on it.
-
-**`chromium`** runs the remaining five specs (`containers`, `images`, `users`, `settings`, `rbac`) once `auth` completes.
-
-All specs use `test.describe.configure({ mode: "serial" })`, which means tests within each spec run sequentially on a single worker. The SQLite database is shared global state; running tests in parallel across it would cause races. In CI, `workers: 1` enforces this at the project level as a second safety net.
+All specs use `test.describe.configure({ mode: "serial" })`. The dev server's SQLite file is shared global state; running tests in parallel across it would cause races.
 
 ### Test isolation
 
-**Database reset** happens in `global-setup.ts` before every test run. The DB is truncated in-place rather than deleted:
+**Database reset** in `global-setup.ts` truncates rows in-place rather than deleting the file. The dev server holds an open SQLite file descriptor, so `rm` would leave a stale inode — the server keeps writing to the deleted file while the next run opens a fresh, unmigrated one:
 
 ```typescript
 const db = new Database(dbPath);
@@ -157,37 +225,28 @@ db.pragma("foreign_keys = ON");
 db.close();
 ```
 
-Deleting the file would be simpler, but the dev server holds an open SQLite file descriptor. Deleting creates a stale inode: the server keeps writing to a deleted file while the next run opens a new one, which starts empty and unmigrated. Truncating rows in-place lets every open connection immediately see the cleared state.
+**Docker container cleanup** removes any container whose name starts with `e2e-`.
 
-**Docker container cleanup** also runs in global setup, removing any container whose name starts with `e2e-`. This convention (all test containers are named `e2e-<something>`) ensures orphans from crashed test runs are cleaned up automatically.
+**Docker unavailability** is handled gracefully: `global-setup.ts` pings Docker before cleanup. If unreachable, cleanup is skipped with a warning and DB reset still proceeds.
 
-**Docker unavailability** is handled gracefully: `global-setup.ts` pings Docker before attempting cleanup. If the daemon is unreachable, cleanup is skipped with a warning and the DB reset still proceeds. A missing Docker socket doesn't block auth and settings tests that don't need it.
-
-**Data directory isolation:** The dev server is started by Playwright's `webServer` config with `DOCKLET_DATA_DIR=./tmp/docklet-e2e-data`, keeping test data completely separate from any local development database. `reuseExistingServer: false` ensures the server is always restarted with this env. A stale server would point at a different data directory and cause every test to fail with confusing state mismatches.
+**Data directory isolation:** the dev server starts with `DOCKLET_DATA_DIR=./tmp/docklet-e2e-data`, completely separate from any local dev database. `reuseExistingServer: false` ensures a fresh server every run.
 
 ### Auth fixtures
 
-Every test that needs an authenticated session uses one of three fixtures: `adminPage`, `userPage`, or `modPage`. These are defined in `fixtures/auth.fixtures.ts` and extended from Playwright's base `test`.
+Every test that needs a session uses `adminPage`, `userPage`, or `modPage`, defined in `fixtures/auth.fixtures.ts`.
 
 Fixtures log in via the API, not the UI, for two reasons:
 
-1. **Rate limit:** The login endpoint enforces a sliding window of 5 attempts per 15 minutes per IP. A test suite that logs in via form would exhaust this in seconds. The `webServer` config injects `E2E_DISABLE_RATE_LIMIT=1`, which the login route checks before calling the rate limiter.
+1. **Rate limit.** The login endpoint enforces 5 attempts per 15 minutes per IP. `webServer` injects `E2E_DISABLE_RATE_LIMIT=1` to bypass this for tests.
+2. **Reliability.** API calls don't race with React hydration or navigation timing.
 
-2. **Reliability:** API calls don't race with React hydration, animation frames, or navigation timing.
+The login API sets an `httpOnly` cookie. Since JavaScript can't read `httpOnly` cookies, the fixture parses the raw `Set-Cookie` header and calls `page.context().addCookies()`.
 
-The login API sets an `httpOnly` cookie (`docklet_session`). `httpOnly` cookies are intentionally inaccessible to JavaScript, so `document.cookie` can't inject them. Instead, the fixture parses the raw `Set-Cookie` response header and calls `page.context().addCookies()`:
-
-```typescript
-const setCookieHeader = res.headers()["set-cookie"];
-const cookies = parseSetCookieHeader(setCookieHeader, "localhost");
-await page.context().addCookies(cookies);
-```
-
-`ensureAdmin` and `ensureUser` are idempotent, ignoring 400/409 responses, so fixtures can be called in any order across parallel workers without failing if the user already exists.
+`ensureAdmin` / `ensureUser` are idempotent, ignoring 400/409 so fixtures can be called across workers without failing if the user already exists.
 
 ### Page Object Model
 
-Every page has a corresponding POM in `e2e/pom/`. POMs do two things: expose named locators as properties, and encode wait conditions inside action methods.
+Each page has a POM in `e2e/pom/`. POMs expose named locators and encode wait conditions inside action methods.
 
 **Locator strategy**, in priority order:
 
@@ -195,13 +254,12 @@ Every page has a corresponding POM in `e2e/pom/`. POMs do two things: expose nam
 |----------|-------------|---------|
 | `getByLabel()` | Form inputs with a `<label>` | `page.getByLabel("Username")` |
 | `getByRole()` | Buttons, headings, links with semantic meaning | `page.getByRole("button", { name: "Sign in" })` |
-| `getByTestId()` | Dynamic or status UI with no stable role/label | `page.getByTestId("status-badge")` |
+| `getByTestId()` | Dynamic UI with no stable role/label | `page.getByTestId("status-badge")` |
 | `getByTitle()` | Icon-only buttons where the tooltip is the name | `row.getByTitle("Edit")` |
-| CSS / placeholder | Compound queries where the above are ambiguous | `locator('input[placeholder="Host Port"]')` |
 
-`exact: true` is added whenever a partial name match would resolve to multiple elements. The classic case is `{ name: "Pull" }` matching both the "Pull Image" button and the "Pull" submit button inside the modal, a strict-mode violation that caused a real test failure before the fix.
+`exact: true` is added whenever a partial name match would resolve to multiple elements (e.g. `{ name: "Pull" }` matching both "Pull Image" and the modal's "Pull" submit button).
 
-POM action methods encode their own completion condition. A test that calls `detail.start()` doesn't need to know that it should wait for the Stop button to appear:
+POM action methods encode their own completion condition:
 
 ```typescript
 async start(): Promise<void> {
@@ -210,85 +268,4 @@ async start(): Promise<void> {
 }
 ```
 
-This keeps specs declarative and prevents the common anti-pattern of `click()` followed by an immediate assertion that races against async state updates.
-
-### API-level state setup
-
-Tests that require existing infrastructure (a running container, a set of users) build that state via API in `beforeAll` rather than through the UI:
-
-```typescript
-test.beforeAll(async ({ request }) => {
-  const cookie = await getAdminCookie(request);
-  const res = await request.post("/api/containers", {
-    headers: { Cookie: cookie },
-    data: { name: "e2e-lifecycle", image: "alpine:latest", cmd: ["sleep", "3600"] },
-  });
-  containerId = (await res.json()).id;
-});
-
-test.afterAll(async ({ request }) => {
-  const cookie = await getAdminCookie(request);
-  await request.delete(`/api/containers/${containerId}?force=true`, {
-    headers: { Cookie: cookie },
-  });
-});
-```
-
-`beforeAll`/`afterAll` with a shared closure variable requires `mode: "serial"` on the describe block. Without serial mode, `fullyParallel: true` would distribute the tests across workers, each running its own `beforeAll` and writing to its own copy of the variable, so the shared state would never be visible.
-
-### Spec summary
-
-| Spec | State setup | What it validates |
-|------|-------------|-------------------|
-| `auth.spec.ts` | None (requires empty DB) | Setup wizard flow, login, logout, redirect guards |
-| `containers.spec.ts` | API create/delete per describe block | Container CRUD, lifecycle transitions, port/env config, template save and load |
-| `images.spec.ts` | None | Image list, pull modal, pull + delete (network-gated, see below) |
-| `users.spec.ts` | API create/delete per describe block | User CRUD, role changes, password reset, self-delete prevention |
-| `settings.spec.ts` | Saves and restores `app_name` in `afterAll` | App name persistence, TLS cert upload UI, restart confirm dialog |
-| `rbac.spec.ts` | API creates a running container for exec test | Page-level access control, sidebar visibility, API 403 enforcement, exec input visibility |
-
-### Network-dependent tests
-
-Two tests in `images.spec.ts` pull from Docker Hub and are skipped by default:
-
-```
-DOCKER_E2E_NETWORK=1 npm run test:e2e
-```
-
-These tests use `test.setTimeout(180_000)` rather than `test.slow()`. `test.slow()` triples the configured default (30s → 90s), but the modal close `waitFor` inside `pullImage` is set to 120s. A pull on a slow connection can take longer than 90s, so an explicit 180s timeout makes the budget clear and avoids the outer timeout firing before the inner one resolves.
-
-The pull modal closes automatically on success (`setPullOpen(false)` is called when the SSE stream emits `data.complete`). The POM's `pullImage` method waits for the modal heading to disappear as its completion signal, a clean observable boundary that doesn't require polling the image list.
-
-### CI and DOCKER_E2E_NETWORK
-
-The main CI workflow does **not** set `DOCKER_E2E_NETWORK=1`, and this is intentional.
-
-GitHub Actions runners share IP address pools. Docker Hub's anonymous pull rate limit (100 pulls per 6 hours per IP) applies across every workflow running on that shared pool, so your CI can start seeing 429 failures that have nothing to do with your code. Authenticated pulls raise the limit per account, but that requires secrets management for a marginal gain.
-
-The network tests also add up to 3 minutes per run for a feature path that rarely changes. The pull modal opening and closing and the SSE progress rendering are covered by the unconditional modal dismiss test that runs without `DOCKER_E2E_NETWORK`.
-
-The CI workflow does pre-pull `alpine:latest` and `nginx:alpine` before the test run, since `docker.createContainer()` does not auto-pull images and a cold runner will have neither cached. `busybox:latest` (used only in the network-gated tests) is intentionally not pre-pulled.
-
-For scheduled full coverage, a separate workflow can run nightly with `DOCKER_E2E_NETWORK=1` and Docker Hub credentials configured as secrets:
-
-```yaml
-on:
-  schedule:
-    - cron: '0 3 * * *'
-  workflow_dispatch:
-
-jobs:
-  e2e-network:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm }
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: docker pull alpine:latest nginx:alpine
-      - run: npm run test:e2e
-        env:
-          DOCKER_E2E_NETWORK: "1"
-          DOCKLET_DATA_DIR: /tmp/docklet-e2e-data
-```
+This keeps specs declarative and avoids the `click()`-then-assert race.

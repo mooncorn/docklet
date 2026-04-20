@@ -131,16 +131,19 @@ docker stop docklet && docker rm docklet
 
 ## Testing
 
-Docklet has two layers of automated tests.
+Docklet has three layers of automated tests.
 
-**Unit tests** (Vitest) cover service modules and pure logic. Test files live alongside source files (`foo.test.ts` next to `foo.ts`). External dependencies (DB, Docker, filesystem) are mocked at the module level.
+**Unit tests** (Vitest) cover service modules and pure logic in isolation. External dependencies are mocked at the module level.
+
+**Integration tests** (Vitest, `*.integration.test.ts`) invoke route handlers directly against an in-memory SQLite database and a stubbed Docker daemon. They are the workhorse of the suite — fast (sub-10s for the whole set) and cover auth, RBAC, CRUD, and state transitions without a browser.
 
 ```bash
-npm test             # run once
-npm run test:watch   # watch mode
+npm test                  # run all Vitest suites (unit + integration)
+npm run test:integration  # integration tests only
+npm run test:watch        # watch mode
 ```
 
-**E2E tests** (Playwright) exercise the full app in a real browser against a running dev server.
+**E2E tests** (Playwright) exercise genuine multi-page user journeys in a real browser against a running dev server. Kept intentionally small (~17 tests) — anything coverable at the integration layer lives there instead.
 
 ```bash
 npx playwright install chromium   # first time only
@@ -149,7 +152,7 @@ npm run test:e2e
 
 Run `npm run typecheck` to catch TypeScript errors before running tests.
 
-For architecture details covering isolation strategy, auth fixtures, POM conventions, and the reasoning behind each decision, see [docs/TESTING.md](docs/TESTING.md).
+For architecture details covering the DB dependency-injection pattern, the integration-test harness, auth fixtures, POM conventions, and the reasoning behind each decision, see [docs/TESTING.md](docs/TESTING.md).
 
 ## Development
 
