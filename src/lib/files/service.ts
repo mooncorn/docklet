@@ -1,9 +1,9 @@
 import { createReadStream, createWriteStream } from "fs";
-import { readdir, stat, readFile, writeFile, mkdir as fsMkdir, rename as fsRename, rm, unlink } from "fs/promises";
+import { readdir, stat, readFile, writeFile, mkdir as fsMkdir, rename as fsRename, rm, unlink, open } from "fs/promises";
 import { basename, dirname, join } from "path";
 import { Readable, Transform } from "stream";
 import { pipeline } from "stream/promises";
-import { fileTypeFromFile } from "file-type";
+import { fileTypeFromBuffer } from "file-type";
 import { AppError } from "@/lib/errors";
 import { resolveSafePath, toRelative } from "./paths";
 
@@ -33,18 +33,26 @@ async function entryFromAbs(absPath: string, isText = false): Promise<FileEntry>
   };
 }
 
-async function detectIsText(absPath: string): Promise<boolean> {
-  let detected: Awaited<ReturnType<typeof fileTypeFromFile>>;
+async function readFileChunk(absPath: string, bytes = 4100): Promise<Buffer> {
+  const chunk = Buffer.alloc(bytes);
+  const fd = await open(absPath, "r");
   try {
-    detected = await fileTypeFromFile(absPath);
+    const { bytesRead } = await fd.read(chunk, 0, bytes, 0);
+    return chunk.subarray(0, bytesRead);
+  } finally {
+    await fd.close();
+  }
+}
+
+async function detectIsText(absPath: string): Promise<boolean> {
+  let buf: Buffer;
+  try {
+    buf = await readFileChunk(absPath);
   } catch {
-    // Can't read file → don't assume text
     return false;
   }
-  // file-type recognises all major binary formats by magic bytes.
-  // If it returns nothing the file has no recognised binary signature → treat as text.
-  if (detected) return isTextMime(detected.mime);
-  return true;
+  const detected = await fileTypeFromBuffer(buf);
+  return detected ? isTextMime(detected.mime) : true;
 }
 
 function wrapFsError(err: unknown): never {
@@ -113,8 +121,13 @@ export async function readTextFile(
   if (entry.size > maxBytes) {
     throw new AppError(413, `File too large (max ${maxBytes} bytes)`);
   }
-  // Binary detection reads only the first ~4 KB
-  const detected = await fileTypeFromFile(abs).catch(() => undefined);
+  let chunk: Buffer;
+  try {
+    chunk = await readFileChunk(abs);
+  } catch (err) {
+    wrapFsError(err);
+  }
+  const detected = await fileTypeFromBuffer(chunk).catch(() => undefined);
   if (detected && !isTextMime(detected.mime)) {
     throw new AppError(415, `Binary file (${detected.mime})`);
   }

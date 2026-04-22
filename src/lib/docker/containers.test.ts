@@ -21,8 +21,11 @@ vi.mock("./client", () => ({
   getDocker: () => mockDocker,
 }));
 
+let mockHostDataDir = "/docklet-data";
+
 vi.mock("@/lib/db", () => ({
   getDataDir: () => "/docklet-data",
+  getHostDataDir: () => mockHostDataDir,
 }));
 
 vi.mock("fs", () => ({
@@ -43,6 +46,7 @@ import {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockHostDataDir = "/docklet-data";
 });
 
 describe("listContainers", () => {
@@ -269,6 +273,25 @@ describe("createContainer", () => {
       expect.objectContaining({
         HostConfig: expect.objectContaining({
           Binds: ["/docklet-data/volumes/mc-server/data:/data:rw"],
+        }),
+      })
+    );
+  });
+
+  it("when HOST_DATA_DIR differs from DOCKLET_DATA_DIR — bind mount uses host path", async () => {
+    mockHostDataDir = "/Users/david/docklet-data";
+    mockDocker.createContainer.mockResolvedValue({ id: "host123" });
+
+    await createContainer({
+      name: "myapp",
+      image: "nginx",
+      volumes: [{ containerPath: "/var/www" }],
+    });
+
+    expect(mockDocker.createContainer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        HostConfig: expect.objectContaining({
+          Binds: ["/Users/david/docklet-data/volumes/myapp/var/www:/var/www:rw"],
         }),
       })
     );

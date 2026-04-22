@@ -43,6 +43,10 @@ export function getDataDir(): string {
   return DATA_DIR;
 }
 
+export function getHostDataDir(): string {
+  return process.env.HOST_DATA_DIR || DATA_DIR;
+}
+
 export function initDataDirs(): void {
   const dirs = ["db", "certs", "backups"];
   for (const dir of dirs) {

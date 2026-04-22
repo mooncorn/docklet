@@ -87,6 +87,7 @@ Docklet runs on HTTPS by default. A self-signed certificate is generated automat
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `DOCKLET_DATA_DIR` | `/docklet-data` | Root data directory |
+| `HOST_DATA_DIR` | *(same as `DOCKLET_DATA_DIR`)* | Host path for Docker bind mounts. Set when the data directory path on the Docker host differs from its path inside the Docklet container (e.g. Docker Desktop on Mac). |
 | `DOCKER_SOCKET` | `/var/run/docker.sock` | Docker daemon socket |
 
 All other configuration is managed through the web UI and stored in the settings table.

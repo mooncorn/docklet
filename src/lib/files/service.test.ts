@@ -5,7 +5,7 @@ import { join } from "path";
 import { tmpdir } from "os";
 
 vi.mock("file-type", () => ({
-  fileTypeFromFile: vi.fn(async () => undefined),
+  fileTypeFromBuffer: vi.fn(async () => undefined),
 }));
 
 describe("files/service", () => {
@@ -27,8 +27,8 @@ describe("files/service", () => {
   beforeEach(async () => {
     rmSync(volumesDir, { recursive: true, force: true });
     mkdirSync(volumesDir, { recursive: true });
-    const { fileTypeFromFile } = await import("file-type");
-    vi.mocked(fileTypeFromFile).mockReset().mockResolvedValue(undefined);
+    const { fileTypeFromBuffer } = await import("file-type");
+    vi.mocked(fileTypeFromBuffer).mockReset().mockResolvedValue(undefined);
   });
 
   describe("listDir", () => {
@@ -49,6 +49,52 @@ describe("files/service", () => {
       const { listDir } = await import("./service");
       await expect(listDir("../..")).rejects.toMatchObject({ status: 400 });
     });
+
+    it("when file has no binary signature — entry has isText true", async () => {
+      writeFileSync(join(volumesDir, "notes.txt"), "hello world");
+
+      const { listDir } = await import("./service");
+      const entries = await listDir("");
+
+      expect(entries).toEqual(expect.arrayContaining([
+        expect.objectContaining({ name: "notes.txt", isText: true }),
+      ]));
+    });
+
+    it("when fileTypeFromBuffer detects binary mime — entry has isText false", async () => {
+      const { fileTypeFromBuffer } = await import("file-type");
+      vi.mocked(fileTypeFromBuffer).mockResolvedValue({ mime: "image/png", ext: "png" });
+      writeFileSync(join(volumesDir, "img.png"), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+
+      const { listDir } = await import("./service");
+      const entries = await listDir("");
+
+      expect(entries).toEqual(expect.arrayContaining([
+        expect.objectContaining({ name: "img.png", isText: false }),
+      ]));
+    });
+
+    it("when entry is a directory — isText is false regardless of content", async () => {
+      mkdirSync(join(volumesDir, "subdir"));
+
+      const { listDir } = await import("./service");
+      const entries = await listDir("");
+
+      expect(entries).toEqual(expect.arrayContaining([
+        expect.objectContaining({ name: "subdir", isDir: true, isText: false }),
+      ]));
+    });
+
+    it("when file is empty — entry has isText true", async () => {
+      writeFileSync(join(volumesDir, "empty.txt"), "");
+
+      const { listDir } = await import("./service");
+      const entries = await listDir("");
+
+      expect(entries).toEqual(expect.arrayContaining([
+        expect.objectContaining({ name: "empty.txt", isText: true }),
+      ]));
+    });
   });
 
   describe("writeTextFile + readTextFile", () => {
@@ -68,20 +114,26 @@ describe("files/service", () => {
     });
 
     it("readTextFile — when file has binary mime type — rejects with 415", async () => {
-      const { fileTypeFromFile } = await import("file-type");
-      vi.mocked(fileTypeFromFile).mockResolvedValue({ mime: "image/png", ext: "png" });
+      const { fileTypeFromBuffer } = await import("file-type");
+      vi.mocked(fileTypeFromBuffer).mockResolvedValue({ mime: "image/png", ext: "png" });
       writeFileSync(join(volumesDir, "img.png"), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
       const { readTextFile } = await import("./service");
       await expect(readTextFile("img.png")).rejects.toMatchObject({ status: 415 });
     });
 
     it("readTextFile — when file has explicit text mime type — returns content", async () => {
-      const { fileTypeFromFile } = await import("file-type");
-      vi.mocked(fileTypeFromFile).mockResolvedValue({ mime: "application/json", ext: "json" });
+      const { fileTypeFromBuffer } = await import("file-type");
+      vi.mocked(fileTypeFromBuffer).mockResolvedValue({ mime: "application/json", ext: "json" });
       writeFileSync(join(volumesDir, "data.json"), '{"ok":true}');
       const { readTextFile } = await import("./service");
       const { content } = await readTextFile("data.json");
       expect(content).toBe('{"ok":true}');
+    });
+
+    it("readTextFile — when file does not exist — rejects with 404", async () => {
+      const { readTextFile } = await import("./service");
+
+      await expect(readTextFile("ghost.txt")).rejects.toMatchObject({ status: 404 });
     });
 
     it("readTextFile — when file exceeds max bytes — rejects with 413", async () => {
