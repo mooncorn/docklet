@@ -3,17 +3,20 @@
 import {
   HiOutlineCpuChip,
   HiOutlineCircleStack,
-  HiOutlineServerStack,
   HiOutlineCube,
-  HiOutlinePhoto,
-  HiOutlineClock,
+  HiOutlineArrowDownTray,
+  HiOutlineArrowUpTray,
+  HiOutlineServerStack,
 } from "react-icons/hi2";
-import { useSystemStats } from "@/hooks/useSystemStats";
+import Link from "next/link";
+import { useDockerOverview } from "@/hooks/useDockerOverview";
+import StatusBadge from "@/components/ui/StatusBadge";
+import type { ContainerStats } from "@/lib/docker/stats";
 
 export default function DashboardStats() {
-  const { stats, connected } = useSystemStats();
+  const { overview, connected } = useDockerOverview();
 
-  if (!stats) {
+  if (!overview) {
     return (
       <div className="flex items-center justify-center py-16">
         <div className="spinner" />
@@ -21,54 +24,46 @@ export default function DashboardStats() {
     );
   }
 
+  const memPercent = percentOf(
+    overview.totals.memory.used,
+    overview.totals.memory.limit
+  );
+
   return (
-    <div>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <CountCard
+          icon={<HiOutlineCube className="w-5 h-5" />}
+          title="Containers"
+          main={`${overview.counts.running} / ${overview.counts.total}`}
+          sub={`${overview.counts.stopped} stopped`}
+        />
         <UsageCard
           icon={<HiOutlineCpuChip className="w-5 h-5" />}
           title="CPU"
-          subtitle={stats.cpu.model || `${stats.cpu.cores} cores`}
-          percent={stats.cpu.load}
-          primaryLabel={`${stats.cpu.load.toFixed(1)}%`}
-          secondaryLabel={`${stats.cpu.cores} cores`}
+          percent={overview.totals.cpuPercent}
+          primaryLabel={`${overview.totals.cpuPercent.toFixed(1)}%`}
+          secondaryLabel="aggregate"
         />
         <UsageCard
           icon={<HiOutlineCircleStack className="w-5 h-5" />}
           title="Memory"
-          subtitle={`${formatBytes(stats.mem.total)} total`}
-          percent={percentOf(stats.mem.used, stats.mem.total)}
-          primaryLabel={formatBytes(stats.mem.used)}
-          secondaryLabel={`of ${formatBytes(stats.mem.total)}`}
+          percent={memPercent}
+          primaryLabel={formatBytes(overview.totals.memory.used)}
+          secondaryLabel={`of ${formatBytes(overview.totals.memory.limit)}`}
         />
-        <UsageCard
+        <IoCard
           icon={<HiOutlineServerStack className="w-5 h-5" />}
-          title="Disk"
-          subtitle={stats.disk.mountpoint}
-          percent={percentOf(stats.disk.used, stats.disk.total)}
-          primaryLabel={formatBytes(stats.disk.used)}
-          secondaryLabel={`of ${formatBytes(stats.disk.total)}`}
-        />
-        <CountCard
-          icon={<HiOutlineCube className="w-5 h-5" />}
-          title="Containers"
-          main={`${stats.docker.running} / ${stats.docker.total}`}
-          sub={`${stats.docker.stopped} stopped`}
-        />
-        <CountCard
-          icon={<HiOutlinePhoto className="w-5 h-5" />}
-          title="Images"
-          main={String(stats.docker.images)}
-          sub="local"
-        />
-        <CountCard
-          icon={<HiOutlineClock className="w-5 h-5" />}
-          title="Uptime"
-          main={formatUptime(stats.uptime)}
-          sub={`${stats.os.distro || stats.os.platform} ${stats.os.release}`.trim()}
+          title="Network / Block I/O"
+          net={overview.totals.network}
+          block={overview.totals.block}
         />
       </div>
+
+      <ContainerTable containers={overview.containers} />
+
       {!connected && (
-        <p className="mt-4 text-xs text-gray-500">Reconnecting to stream…</p>
+        <p className="text-xs text-gray-500">Reconnecting to stream…</p>
       )}
     </div>
   );
@@ -77,14 +72,12 @@ export default function DashboardStats() {
 function UsageCard({
   icon,
   title,
-  subtitle,
   percent,
   primaryLabel,
   secondaryLabel,
 }: {
   icon: React.ReactNode;
   title: string;
-  subtitle: string;
   percent: number;
   primaryLabel: string;
   secondaryLabel: string;
@@ -94,17 +87,14 @@ function UsageCard({
     pct >= 90 ? "bg-red-500" : pct >= 75 ? "bg-yellow-500" : "bg-blue-500";
   return (
     <div className="card">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2 text-gray-300">
-          {icon}
-          <span className="font-medium">{title}</span>
-        </div>
-        <span className="text-xs text-gray-500 truncate max-w-[50%]" title={subtitle}>
-          {subtitle}
-        </span>
+      <div className="flex items-center gap-2 text-gray-300 mb-3">
+        {icon}
+        <span className="font-medium">{title}</span>
       </div>
       <div className="flex items-baseline justify-between mb-2">
-        <span className="text-2xl font-semibold text-white">{primaryLabel}</span>
+        <span className="text-2xl font-semibold text-white">
+          {primaryLabel}
+        </span>
         <span className="text-xs text-gray-500">{secondaryLabel}</span>
       </div>
       <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
@@ -142,6 +132,103 @@ function CountCard({
   );
 }
 
+function IoCard({
+  icon,
+  title,
+  net,
+  block,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  net: { rx: number; tx: number };
+  block: { read: number; write: number };
+}) {
+  return (
+    <div className="card">
+      <div className="flex items-center gap-2 text-gray-300 mb-3">
+        {icon}
+        <span className="font-medium">{title}</span>
+      </div>
+      <div className="grid grid-cols-2 gap-y-1 text-sm">
+        <span className="flex items-center gap-1 text-gray-400">
+          <HiOutlineArrowDownTray className="w-4 h-4" /> net rx
+        </span>
+        <span className="text-right text-white">{formatBytes(net.rx)}</span>
+        <span className="flex items-center gap-1 text-gray-400">
+          <HiOutlineArrowUpTray className="w-4 h-4" /> net tx
+        </span>
+        <span className="text-right text-white">{formatBytes(net.tx)}</span>
+        <span className="flex items-center gap-1 text-gray-400">
+          <HiOutlineArrowDownTray className="w-4 h-4" /> blk read
+        </span>
+        <span className="text-right text-white">{formatBytes(block.read)}</span>
+        <span className="flex items-center gap-1 text-gray-400">
+          <HiOutlineArrowUpTray className="w-4 h-4" /> blk write
+        </span>
+        <span className="text-right text-white">
+          {formatBytes(block.write)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ContainerTable({ containers }: { containers: ContainerStats[] }) {
+  if (containers.length === 0) {
+    return (
+      <div className="card text-center py-8">
+        <p className="text-gray-400 text-sm">No running containers</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card overflow-x-auto">
+      <table className="w-full text-sm" data-testid="dashboard-container-table">
+        <thead>
+          <tr className="text-gray-400 border-b border-gray-700">
+            <th className="text-left py-2 pr-4">Name</th>
+            <th className="text-left py-2 pr-4">State</th>
+            <th className="text-right py-2 pr-4">CPU</th>
+            <th className="text-right py-2 pr-4">Memory</th>
+            <th className="text-right py-2 pr-4">Net rx/tx</th>
+            <th className="text-right py-2">Block r/w</th>
+          </tr>
+        </thead>
+        <tbody>
+          {containers.map((c) => (
+            <tr key={c.id} className="border-b border-gray-700/50">
+              <td className="py-2 pr-4">
+                <Link
+                  href={`/containers/${c.id}`}
+                  className="text-blue-300 hover:underline"
+                >
+                  {c.name}
+                </Link>
+              </td>
+              <td className="py-2 pr-4">
+                <StatusBadge status={c.state} />
+              </td>
+              <td className="py-2 pr-4 text-right">
+                {c.cpuPercent.toFixed(1)}%
+              </td>
+              <td className="py-2 pr-4 text-right">
+                {formatBytes(c.memory.used)} / {formatBytes(c.memory.limit)}
+              </td>
+              <td className="py-2 pr-4 text-right">
+                {formatBytes(c.network.rx)} / {formatBytes(c.network.tx)}
+              </td>
+              <td className="py-2 text-right">
+                {formatBytes(c.block.read)} / {formatBytes(c.block.write)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function percentOf(used: number, total: number): number {
   if (!total) return 0;
   return (used / total) * 100;
@@ -161,13 +248,4 @@ function formatBytes(bytes: number): string {
     i++;
   }
   return `${n.toFixed(n >= 10 || i === 0 ? 0 : 1)} ${units[i]}`;
-}
-
-function formatUptime(seconds: number): string {
-  const d = Math.floor(seconds / 86400);
-  const h = Math.floor((seconds % 86400) / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (d > 0) return `${d}d ${h}h`;
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
 }

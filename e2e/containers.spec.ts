@@ -37,6 +37,19 @@ async function apiCreateContainer(
   return id;
 }
 
+async function apiStartContainer(
+  request: APIRequestContext,
+  id: string
+): Promise<void> {
+  const cookie = await getAdminCookie(request);
+  const res = await request.post(`/api/containers/${id}/start`, {
+    headers: { Cookie: cookie },
+  });
+  if (!res.ok()) {
+    throw new Error(`start container failed: ${await res.text()}`);
+  }
+}
+
 test.describe("Create Container", () => {
   test("creates a container via the form, lands on detail page, and card appears in list", async ({
     adminPage,
@@ -82,6 +95,41 @@ test.describe("Container Lifecycle", () => {
     await pwExpect(detail.statusBadge).toContainText(/running/i);
 
     await apiDeleteContainer(request, id);
+  });
+});
+
+test.describe("Container Stats tab", () => {
+  let statsContainerId: string | null = null;
+
+  test.afterEach(async ({ request }) => {
+    if (statsContainerId) {
+      await apiDeleteContainer(request, statsContainerId);
+      statsContainerId = null;
+    }
+  });
+
+  test("for a running container — renders live CPU and memory values from the SSE stream", async ({
+    adminPage,
+    request,
+  }) => {
+    statsContainerId = await apiCreateContainer(
+      request,
+      "e2e-stats",
+      "alpine:latest",
+      ["sleep", "3600"]
+    );
+    await apiStartContainer(request, statsContainerId);
+    const detail = new ContainerDetailPage(adminPage);
+    await detail.goto(statsContainerId);
+
+    await detail.selectTab("Stats");
+
+    await pwExpect
+      .soft(detail.statsCpu)
+      .toHaveText(/^\d+(\.\d+)?%$/, { timeout: 10_000 });
+    await pwExpect
+      .soft(detail.statsMemory)
+      .toHaveText(/^\d+(\.\d+)?\s+\w+\s*\/\s*\d+(\.\d+)?\s+\w+$/);
   });
 });
 

@@ -1,6 +1,12 @@
 import { type Page, type Locator } from "@playwright/test";
 
-export type ContainerTab = "Logs" | "Info" | "Ports" | "Mounts" | "Environment";
+export type ContainerTab =
+  | "Logs"
+  | "Stats"
+  | "Info"
+  | "Ports"
+  | "Mounts"
+  | "Environment";
 
 export class ContainerDetailPage {
   readonly page: Page;
@@ -12,6 +18,8 @@ export class ContainerDetailPage {
   readonly statusBadge: Locator;
   readonly execInput: Locator;
   readonly execRunButton: Locator;
+  readonly statsCpu: Locator;
+  readonly statsMemory: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -23,6 +31,8 @@ export class ContainerDetailPage {
     this.statusBadge = page.getByTestId("status-badge");
     this.execInput = page.getByPlaceholder("Enter command...");
     this.execRunButton = page.getByRole("button", { name: "Run" });
+    this.statsCpu = page.getByTestId("stats-cpu");
+    this.statsMemory = page.getByTestId("stats-memory");
   }
 
   async goto(containerId: string): Promise<void> {

@@ -1,11 +1,11 @@
 import { requireAuth, handleApiError } from "@/lib/auth/middleware";
-import { getSystemStats } from "@/lib/system/stats";
+import { getOverview } from "@/lib/docker/stats";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const TICK_MS = 2000;
-const HEARTBEAT_MS = 30000;
+const TICK_MS = 1500;
+const HEARTBEAT_MS = 30_000;
 
 export async function GET() {
   try {
@@ -22,17 +22,16 @@ export async function GET() {
         const push = async () => {
           if (aborted) return;
           try {
-            const stats = await getSystemStats();
+            const overview = await getOverview();
             if (aborted) return;
             controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify(stats)}\n\n`)
+              encoder.encode(`data: ${JSON.stringify(overview)}\n\n`)
             );
           } catch {
             // Skip failed ticks; next tick will retry
           }
         };
 
-        // Emit first snapshot immediately
         push();
 
         tickTimer = setInterval(push, TICK_MS);

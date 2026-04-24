@@ -18,11 +18,13 @@ import Tabs from "@/components/ui/Tabs";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { useContainerLogs } from "@/hooks/useContainerLogs";
 import { useDockerEvents } from "@/hooks/useDockerEvents";
+import { useContainerStats } from "@/hooks/useContainerStats";
 import type { ContainerDetail } from "@/lib/docker/types";
 import { useAuth } from "@/hooks/useAuth";
 
 const tabs = [
   { id: "logs", label: "Logs" },
+  { id: "stats", label: "Stats" },
   { id: "info", label: "Info" },
   { id: "ports", label: "Ports" },
   { id: "mounts", label: "Mounts" },
@@ -163,6 +165,9 @@ export default function ContainerDetailPage() {
         {activeTab === "logs" && (
           <LogsTab containerId={id} isRunning={isRunning} isAdmin={user?.role === "admin"} />
         )}
+        {activeTab === "stats" && (
+          <StatsTab containerId={id} isRunning={isRunning} />
+        )}
         {activeTab === "info" && <InfoTab container={container} />}
         {activeTab === "ports" && <PortsTab container={container} />}
         {activeTab === "mounts" && <MountsTab container={container} />}
@@ -274,6 +279,146 @@ function LogsTab({
       )}
     </div>
   );
+}
+
+function StatsTab({
+  containerId,
+  isRunning,
+}: {
+  containerId: string;
+  isRunning: boolean;
+}) {
+  const { stats, connected } = useContainerStats(
+    isRunning ? containerId : null
+  );
+
+  if (!isRunning) {
+    return (
+      <div className="card">
+        <p className="text-gray-400 text-sm">Container is not running</p>
+      </div>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <div className="flex justify-center py-12">
+        <div className="spinner" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <span
+          className={`w-2 h-2 rounded-full ${connected ? "bg-green-400" : "bg-gray-500"}`}
+        />
+        <span className="text-sm text-gray-400">
+          {connected ? "Live" : "Reconnecting…"}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <StatsCard
+          title="CPU"
+          primary={`${stats.cpuPercent.toFixed(1)}%`}
+          percent={stats.cpuPercent}
+          testId="stats-cpu"
+        />
+        <StatsCard
+          title="Memory"
+          primary={`${formatBytes(stats.memory.used)} / ${formatBytes(stats.memory.limit)}`}
+          percent={stats.memory.percent}
+          testId="stats-memory"
+        />
+        <IoStatsCard
+          title="Network"
+          rx={stats.network.rx}
+          tx={stats.network.tx}
+        />
+        <IoStatsCard
+          title="Block I/O"
+          rx={stats.block.read}
+          tx={stats.block.write}
+          rxLabel="read"
+          txLabel="write"
+        />
+      </div>
+
+      <div className="card text-xs text-gray-500">
+        PIDs: {stats.pids} · sample: {stats.read}
+      </div>
+    </div>
+  );
+}
+
+function StatsCard({
+  title,
+  primary,
+  percent,
+  testId,
+}: {
+  title: string;
+  primary: string;
+  percent: number;
+  testId?: string;
+}) {
+  const pct = Math.min(100, Math.max(0, percent));
+  const barColor =
+    pct >= 90 ? "bg-red-500" : pct >= 75 ? "bg-yellow-500" : "bg-blue-500";
+  return (
+    <div className="card">
+      <div className="text-gray-300 font-medium mb-2">{title}</div>
+      <div className="text-2xl font-semibold text-white mb-2" data-testid={testId}>
+        {primary}
+      </div>
+      <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+        <div
+          className={`h-full ${barColor} transition-all duration-500`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function IoStatsCard({
+  title,
+  rx,
+  tx,
+  rxLabel = "rx",
+  txLabel = "tx",
+}: {
+  title: string;
+  rx: number;
+  tx: number;
+  rxLabel?: string;
+  txLabel?: string;
+}) {
+  return (
+    <div className="card">
+      <div className="text-gray-300 font-medium mb-2">{title}</div>
+      <div className="grid grid-cols-2 gap-y-1 text-sm">
+        <span className="text-gray-400">{rxLabel}</span>
+        <span className="text-right text-white">{formatBytes(rx)}</span>
+        <span className="text-gray-400">{txLabel}</span>
+        <span className="text-right text-white">{formatBytes(tx)}</span>
+      </div>
+    </div>
+  );
+}
+
+function formatBytes(bytes: number): string {
+  if (!bytes || bytes < 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB", "PB"];
+  let i = 0;
+  let n = bytes;
+  while (n >= 1024 && i < units.length - 1) {
+    n /= 1024;
+    i++;
+  }
+  return `${n.toFixed(n >= 10 || i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
 function InfoTab({ container }: { container: ContainerDetail }) {

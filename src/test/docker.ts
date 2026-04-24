@@ -1,5 +1,58 @@
 import { Readable } from "stream";
 
+export interface FakeStatsPayload {
+  read: string;
+  cpu_stats: {
+    cpu_usage: { total_usage: number; percpu_usage?: number[] };
+    system_cpu_usage: number;
+    online_cpus?: number;
+  };
+  precpu_stats: {
+    cpu_usage: { total_usage: number };
+    system_cpu_usage: number;
+    online_cpus?: number;
+  };
+  memory_stats: {
+    usage: number;
+    limit: number;
+    stats?: { cache?: number; inactive_file?: number };
+  };
+  networks?: Record<string, { rx_bytes: number; tx_bytes: number }>;
+  blkio_stats?: {
+    io_service_bytes_recursive?: Array<{ op: string; value: number }>;
+  };
+  pids_stats?: { current?: number };
+}
+
+export function defaultStatsPayload(): FakeStatsPayload {
+  return {
+    read: new Date().toISOString(),
+    cpu_stats: {
+      cpu_usage: { total_usage: 2_000_000, percpu_usage: [1, 2] },
+      system_cpu_usage: 100_000_000,
+      online_cpus: 2,
+    },
+    precpu_stats: {
+      cpu_usage: { total_usage: 1_000_000 },
+      system_cpu_usage: 90_000_000,
+      online_cpus: 2,
+    },
+    memory_stats: {
+      usage: 50_000_000,
+      limit: 1_000_000_000,
+      stats: { cache: 5_000_000 },
+    },
+    networks: { eth0: { rx_bytes: 1000, tx_bytes: 2000 } },
+    blkio_stats: {
+      io_service_bytes_recursive: [
+        { op: "Read", value: 4096 },
+        { op: "Write", value: 8192 },
+      ],
+    },
+    pids_stats: { current: 1 },
+  };
+}
+
 interface FakeContainer {
   id: string;
   name: string;
@@ -31,10 +84,30 @@ interface FakeImage {
   Created: number;
 }
 
+export interface FakeStatsStream extends Readable {
+  destroyed: boolean;
+  destroyCalls: number;
+}
+
 export class FakeDocker {
   private containers = new Map<string, FakeContainer>();
   private images = new Map<string, FakeImage>();
+  private statsOverrides = new Map<string, FakeStatsPayload>();
+  private streamStatsOverrides = new Map<string, FakeStatsPayload[]>();
+  private lastStatsStream: FakeStatsStream | null = null;
   private nextContainerId = 1;
+
+  setStats(id: string, payload: FakeStatsPayload): void {
+    this.statsOverrides.set(id, payload);
+  }
+
+  setStreamStats(id: string, payloads: FakeStatsPayload[]): void {
+    this.streamStatsOverrides.set(id, payloads);
+  }
+
+  getLastStatsStream(): FakeStatsStream | null {
+    return this.lastStatsStream;
+  }
 
   addImage(repoTag: string): void {
     const id = `sha256:${repoTag.replace(/[^a-zA-Z0-9]/g, "")}`;
@@ -137,6 +210,27 @@ export class FakeDocker {
         start: async () => Readable.from([]),
         inspect: async () => ({ ExitCode: 0 }),
       }),
+      stats: async (opts: { stream?: boolean } = { stream: true }) => {
+        const payload = this.statsOverrides.get(id) ?? defaultStatsPayload();
+        if (opts.stream === false) return payload;
+
+        const frames =
+          this.streamStatsOverrides.get(id) ?? [payload];
+        const chunks = frames.map(
+          (f) => Buffer.from(JSON.stringify(f) + "\n")
+        );
+        const stream = Readable.from(chunks) as FakeStatsStream;
+        stream.destroyed = false;
+        stream.destroyCalls = 0;
+        const origDestroy = stream.destroy.bind(stream);
+        stream.destroy = ((...args: unknown[]) => {
+          stream.destroyCalls++;
+          stream.destroyed = true;
+          return (origDestroy as (...a: unknown[]) => Readable)(...args);
+        }) as typeof stream.destroy;
+        this.lastStatsStream = stream;
+        return stream;
+      },
     };
   }
 
@@ -173,6 +267,9 @@ export class FakeDocker {
   reset(): void {
     this.containers.clear();
     this.images.clear();
+    this.statsOverrides.clear();
+    this.streamStatsOverrides.clear();
+    this.lastStatsStream = null;
     this.nextContainerId = 1;
   }
 }

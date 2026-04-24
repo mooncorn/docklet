@@ -57,10 +57,12 @@ No other software required. The container bundles Node.js 22, nginx, and OpenSSL
 docker run -d --name docklet \
   -p 80:80 -p 443:443 \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  -v /home/<user>/docklet-data:/docklet-data \
+  -v /docklet-data:/docklet-data \
   --restart always \
   ghcr.io/dandylake/docklet:latest
 ```
+
+Note: If you use a data location other than `/docklet-data`, be sure to set the `HOST_DATA_DIR` environment variable to the absolute path of the new directory on the host system.
 
 Then open `https://localhost` to complete the setup wizard. Accept the browser warning for the self-signed certificate.
 
@@ -118,7 +120,7 @@ services:
       - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /home/<user>/docklet-data:/docklet-data
+      - /docklet-data:/docklet-data
     restart: always
 ```
 
